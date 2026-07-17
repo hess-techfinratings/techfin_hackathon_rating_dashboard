@@ -8,6 +8,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests compared across three agencies (크레디뷰/나이스/크레탑), with 2-year financial statements for 30 companies. Stack: Next.js 16 (App Router, Turbopack) · Tailwind v4 · shadcn/ui · Supabase · Vercel. Maintained via the `/claude-md` skill.
 
+Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys from `main` at github.com/hess-techfinratings/techfin_hackathon_rating_dashboard). Pages: `/` Overview · `/analytics` · `/companies` (+`/[no_req]` detail) · `/errors` 미산출 분석.
+
 ## Rules
 - shadcn/ui only — do NOT add NextUI/HeroUI or Chakra UI (styling systems conflict; decided 2026-07-17).
 - This shadcn is the **base-ui variant**: compose with `render={<Link … />}`, never Radix's `asChild` (fails typecheck).
@@ -15,7 +17,7 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - In the raw CSVs, NICE/CRETOP `*_num_grade`↔`*_char_grade` are swapped; DB columns are already corrected — trust the DB, not the CSV headers.
 - `.env.local` holds `SUPABASE_DB_URL` (DB password!) — never commit it, never add it to Vercel; the deployed app only needs the two `NEXT_PUBLIC_SUPABASE_*` vars.
 - Session auth refresh lives in `src/proxy.ts` (Next 16 convention, not middleware.ts); it no-ops when env vars are missing.
-- Schema changes go in `supabase/migrations/` and are applied by `node scripts/setup-db.mjs` (drops & recreates tables + reimports).
+- Schema changes go in `supabase/migrations/`. Additive changes: `node scripts/apply-sql.mjs <file>`. Full reset: `node scripts/setup-db.mjs` (drops & recreates everything + reimports — wipes `grade_analyses` cache too).
 
 ## Design & UI/UX conventions
 - UI copy is Korean; identifiers (no_req) and route/nav labels stay English.
@@ -39,8 +41,8 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 8. Types for query results go in `src/lib/types.ts`; client components only for recharts/tabs interactivity.
 
 ## Data model
-- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies`. Schema: `supabase/migrations/0001_init.sql`.
-- Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익. Leading spaces in `acct_nm` encode hierarchy depth.
+- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman).
+- Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익 · 111519 단기차입금 · 116000 유동부채 · 118100 자본금 (risk flags). Leading spaces in `acct_nm` encode hierarchy depth.
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
 
@@ -56,8 +58,9 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - 2026-07-17 AI grade-reason analysis: `grade_analyses` cache table (migration 0002 + `scripts/apply-sql.mjs`), OpenAI-backed API route, `GradeAnalysisCard` on detail pages of C계열-이하 companies (13 of 30).
 - 2026-07-17 UI/UX overhaul: grade-band system (GradeBadge, RatingSpectrum, BandComposition), Analytics page (agency divergence + monthly trend, views in migration 0003), 미산출 분석 page, Companies search/band filter, dark mode, loading skeletons; verified with headless-Edge screenshots.
 - 2026-07-17 Legacy-report-inspired upgrades: target KPIs (산출불가율/MIS 비율), Spearman correlation + BB+ 이하 비중 on Analytics (크레탑 0.65, 나이스 0.46), deterministic 위험 신호 flags on company detail.
+- 2026-07-17 Production went live after user added `NEXT_PUBLIC_SUPABASE_*` to Vercel; verified serving real data.
 
 ## What to do next
-- [ ] Verify production site loads after Supabase env vars are added in Vercel (blocked: user adds `NEXT_PUBLIC_SUPABASE_*` and redeploys).
-- [ ] End-to-end test of AI analysis generation (blocked: user adds `OPENAI_API_KEY` to `.env.local` and Vercel).
+- [ ] End-to-end test of AI analysis generation (blocked: user adds `OPENAI_API_KEY` to `.env.local` and Vercel — key not yet present in any location we can read).
 - [ ] Filters/search on the full rating-requests list (date range, grade_type, error code) — Companies has it; the 5,267-row request list has no page yet.
+- [ ] Lock down `grade_analyses` anon write policy (service-role key) if the project outlives the hackathon.
