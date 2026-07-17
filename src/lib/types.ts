@@ -50,6 +50,26 @@ export interface GradeDistributionRow {
   cnt: number
 }
 
+export interface MonthlyTrendViewRow {
+  month: string
+  total: number
+  graded: number
+  ungraded: number
+}
+
+export interface AgencyDivergenceRow {
+  agency: "nice" | "cretop"
+  notch_diff: number
+  cnt: number
+}
+
+export interface ErrorCodeRow {
+  system: "MIS" | "FS"
+  code: string
+  sample_msg: string | null
+  cnt: number
+}
+
 export interface CompanySummary {
   no_req: string
   da_calc: string

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 import { CompanyFinancialChart, type KeyMetricRow } from "@/components/company-financial-chart"
 import { GradeAnalysisCard } from "@/components/grade-analysis-card"
 import { PageHeader } from "@/components/page-header"
+import { RatingSpectrum } from "@/components/rating-spectrum"
 import { SetupNotice } from "@/components/setup-notice"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -173,10 +174,10 @@ export default async function CompanyDetailPage({
     ),
   }))
 
-  const grades = [
-    { label: "크레디뷰", grade: req.cv_char_grade, base: formatYmd(req.cv_dm_base) },
-    { label: "나이스", grade: req.n_char_grade, base: formatYmd(req.n_dm_base) },
-    { label: "크레탑", grade: req.k_char_grade, base: formatYmd(req.k_dm_base) },
+  const agencies = [
+    { label: "크레디뷰", charGrade: req.cv_char_grade, numGrade: req.cv_num_grade, base: formatYmd(req.cv_dm_base) },
+    { label: "나이스", charGrade: req.n_char_grade, numGrade: req.n_num_grade, base: formatYmd(req.n_dm_base) },
+    { label: "크레탑", charGrade: req.k_char_grade, numGrade: req.k_num_grade, base: formatYmd(req.k_dm_base) },
   ]
 
   return (
@@ -184,27 +185,27 @@ export default async function CompanyDetailPage({
       <PageHeader title={`기업 상세 — ${no_req}`}>
         <Link
           href="/companies"
-          className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" /> 기업 목록
         </Link>
       </PageHeader>
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {grades.map((g) => (
-            <Card key={g.label}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {g.label} 등급
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold">{g.grade ?? "미산출"}</div>
-                <p className="text-xs text-muted-foreground">평가 기준: {g.base}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>평가기관 등급 비교</CardTitle>
+            <CardDescription>
+              3개 기관의 등급을 22노치 스케일(AAA→D) 위에서 비교합니다 · 평가 기준:{" "}
+              {agencies
+                .filter((a) => a.charGrade)
+                .map((a) => `${a.label} ${a.base}`)
+                .join(" · ")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RatingSpectrum agencies={agencies} />
+          </CardContent>
+        </Card>
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>신청일: {formatYmd(req.da_calc?.replaceAll("-", ""))}</span>
@@ -245,10 +246,17 @@ export default async function CompanyDetailPage({
           {KEY_METRICS.slice(3).map((m) => {
             const latestVal = byCode.get(m.cd)?.amounts[latest] ?? null
             const prevVal = prev ? (byCode.get(m.cd)?.amounts[prev] ?? null) : null
-            const delta =
-              latestVal !== null && prevVal !== null && prevVal !== 0
-                ? ((latestVal - prevVal) / Math.abs(prevVal)) * 100
-                : null
+            let deltaText: string | null = null
+            if (latestVal !== null && prevVal !== null && prevVal !== 0) {
+              if (prevVal > 0 && latestVal < 0) deltaText = "적자 전환"
+              else if (prevVal < 0 && latestVal >= 0) deltaText = "흑자 전환"
+              else if (prevVal < 0 && latestVal < 0)
+                deltaText = `적자 지속 (${latestVal < prevVal ? "확대" : "축소"})`
+              else {
+                const d = ((latestVal - prevVal) / Math.abs(prevVal)) * 100
+                deltaText = `전년 대비 ${d > 0 ? "+" : ""}${d.toFixed(1)}%`
+              }
+            }
             return (
               <Card key={m.cd}>
                 <CardHeader className="pb-2">
@@ -261,9 +269,7 @@ export default async function CompanyDetailPage({
                     {formatKRW(latestVal)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {delta === null
-                      ? "전년 데이터 없음"
-                      : `전년 대비 ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`}
+                    {deltaText ?? "전년 데이터 없음"}
                   </p>
                 </CardContent>
               </Card>

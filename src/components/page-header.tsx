@@ -1,5 +1,6 @@
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function PageHeader({
   title,
@@ -13,7 +14,10 @@ export function PageHeader({
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <h1 className="text-sm font-medium">{title}</h1>
-      {children}
+      <div className="ml-auto flex items-center gap-2">
+        {children}
+        <ThemeToggle />
+      </div>
     </header>
   )
 }

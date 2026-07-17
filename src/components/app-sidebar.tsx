@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, LayoutDashboard } from "lucide-react"
+import { BarChart3, Building2, FileX2, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -18,7 +18,9 @@ import {
 
 const navItems = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
+  { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Companies", href: "/companies", icon: Building2 },
+  { title: "미산출 분석", href: "/errors", icon: FileX2 },
 ]
 
 export function AppSidebar() {

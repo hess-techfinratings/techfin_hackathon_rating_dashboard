@@ -19,8 +19,10 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 
 ## Design & UI/UX conventions
 - UI copy is Korean; identifiers (no_req) and route/nav labels stay English.
-- Chart colors: `--chart-1..5` in `globals.css` hold a CVD-validated palette (separate light/dark values) — use via `var(--chart-N)`, don't invent hues.
-- Charts use the shadcn chart wrapper (recharts): single series → no legend; ≥2 series → `ChartLegend`; always `ChartTooltip`; bars get `radius={[4,4,0,0]}` and a `maxBarSize`.
+- Chart colors: `--chart-1..8` in `globals.css` hold a CVD-validated palette (separate light/dark values) — use via `var(--chart-N)`, don't invent hues.
+- Grade bands are the visual language: 투자적격(1–10)=chart-1 · 투기(11–16)=chart-3 · 부실위험(17–22)=chart-6, defined once in `src/lib/grade.ts`. Grades render via `GradeBadge` (band dot + ink text); the detail page's `RatingSpectrum` puts all agencies on the 22-notch scale.
+- Charts use the shadcn chart wrapper (recharts): single series → no legend; ≥2 series → `ChartLegend`; always `ChartTooltip`; bars get `radius={[4,4,0,0]}`, a `maxBarSize`, and `isAnimationActive={false}` (instant render, reduced-motion friendly).
+- Dark mode via next-themes (class strategy); `ThemeToggle` lives in `PageHeader` — every page gets it for free.
 - Money: `formatKRW` (억/만 compact) for cards & summaries, `formatWon` (원 with separators) for statement tables, chart axes in 억원; numeric cells get `tabular-nums` + `text-right`.
 - Dates: `formatYmd` / `fiscalYear` from `@/lib/format` — never hand-slice date strings in components.
 - Grade display: `Badge variant="secondary"` for grade_type, `variant="outline"` for 미산출; grades render as plain text, "–" for null.
@@ -48,10 +50,9 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - 2026-07-17 Built pages: Overview (stats, per-agency grade distribution, recent requests), Companies (30 with financials), Company detail (grade cards, 2-year key-metric chart, BS/IS tables).
 - 2026-07-17 Hardened missing-env case (SetupNotice instead of 500) after Vercel deploy failed without env vars.
 - 2026-07-17 AI grade-reason analysis: `grade_analyses` cache table (migration 0002 + `scripts/apply-sql.mjs`), OpenAI-backed API route, `GradeAnalysisCard` on detail pages of C계열-이하 companies (13 of 30).
+- 2026-07-17 UI/UX overhaul: grade-band system (GradeBadge, RatingSpectrum, BandComposition), Analytics page (agency divergence + monthly trend, views in migration 0003), 미산출 분석 page, Companies search/band filter, dark mode, loading skeletons; verified with headless-Edge screenshots.
 
 ## What to do next
 - [ ] Verify production site loads after Supabase env vars are added in Vercel (blocked: user adds `NEXT_PUBLIC_SUPABASE_*` and redeploys).
 - [ ] End-to-end test of AI analysis generation (blocked: user adds `OPENAI_API_KEY` to `.env.local` and Vercel).
-- [ ] Agency agreement analysis — grade divergence (notches) between 크레디뷰/나이스/크레탑, e.g. scatter or diff distribution.
-- [ ] Filters/search on rating requests (date range, grade_type, error code).
-- [ ] Error-code breakdown page for the 825 미산출 cases.
+- [ ] Filters/search on the full rating-requests list (date range, grade_type, error code) — Companies has it; the 5,267-row request list has no page yet.

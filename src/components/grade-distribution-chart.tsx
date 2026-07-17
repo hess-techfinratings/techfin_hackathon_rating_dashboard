@@ -43,7 +43,7 @@ function GradeBarChart({ data }: { data: GradeCount[] }) {
         />
         <YAxis tickLine={false} axisLine={false} tickMargin={8} width={40} />
         <ChartTooltip cursor content={<ChartTooltipContent />} />
-        <Bar dataKey="cnt" fill="var(--color-cnt)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+        <Bar isAnimationActive={false} dataKey="cnt" fill="var(--color-cnt)" radius={[4, 4, 0, 0]} maxBarSize={32} />
       </BarChart>
     </ChartContainer>
   )

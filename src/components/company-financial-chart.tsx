@@ -70,6 +70,7 @@ export function CompanyFinancialChart({
         />
         {years.map((y, i) => (
           <Bar
+            isAnimationActive={false}
             key={y}
             dataKey={y}
             fill={SERIES_COLORS[i % 2]}

@@ -1,6 +1,8 @@
 import { Activity, Building2, FileCheck2, FileX2 } from "lucide-react"
 import Link from "next/link"
 
+import { BandComposition } from "@/components/band-composition"
+import { GradeBadge } from "@/components/grade-badge"
 import { GradeDistributionChart, type GradeCount } from "@/components/grade-distribution-chart"
 import { PageHeader } from "@/components/page-header"
 import { SetupNotice } from "@/components/setup-notice"
@@ -42,7 +44,7 @@ export default async function OverviewPage() {
     supabase.from("v_grade_distribution").select("*").returns<GradeDistributionRow[]>(),
     supabase
       .from("rating_requests")
-      .select("no_req, da_calc, grade_type, cv_char_grade, n_char_grade, k_char_grade, mis_cd_error, fs_cd_error")
+      .select("no_req, da_calc, grade_type, cv_char_grade, cv_num_grade, n_char_grade, k_char_grade, mis_cd_error, fs_cd_error")
       .order("da_calc", { ascending: false })
       .order("no_req", { ascending: false })
       .limit(8)
@@ -165,8 +167,8 @@ export default async function OverviewPage() {
                           <Badge variant="outline">미산출</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">
-                        {r.cv_char_grade ?? "–"}
+                      <TableCell>
+                        <GradeBadge charGrade={r.cv_char_grade} numGrade={r.cv_num_grade} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -176,26 +178,38 @@ export default async function OverviewPage() {
           </Card>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            { label: "FS (재무등급)", value: stats.type_fs },
-            { label: "MIS+FS (통합등급)", value: stats.type_mis_fs },
-            { label: "MIS (경영정보등급)", value: stats.type_mis },
-          ].map((t) => (
-            <Card key={t.label}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {t.label}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold">{t.value.toLocaleString()}건</div>
-                <p className="text-xs text-muted-foreground">
-                  전체의 {stats.total_requests ? Math.round((t.value / stats.total_requests) * 100) : 0}%
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-4 xl:grid-cols-5">
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle>등급대 구성</CardTitle>
+              <CardDescription>평가기관별 투자적격/투기/부실위험 비중</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BandComposition rows={distRes.data ?? []} />
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 sm:grid-cols-3 xl:col-span-3 xl:grid-cols-1">
+            {[
+              { label: "FS (재무등급)", value: stats.type_fs },
+              { label: "MIS+FS (통합등급)", value: stats.type_mis_fs },
+              { label: "MIS (경영정보등급)", value: stats.type_mis },
+            ].map((t) => (
+              <Card key={t.label}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {t.label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-semibold">{t.value.toLocaleString()}건</div>
+                  <p className="text-xs text-muted-foreground">
+                    전체의 {stats.total_requests ? Math.round((t.value / stats.total_requests) * 100) : 0}%
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </main>
     </>
