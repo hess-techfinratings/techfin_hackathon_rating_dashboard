@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TechFin Dashboard
 
-## Getting Started
+Web-based dashboard built with:
 
-First, run the development server:
+- **Next.js 16** (App Router, TypeScript, Turbopack)
+- **Tailwind CSS v4**
+- **shadcn/ui** — component library (18 components pre-installed in `src/components/ui/`)
+- **Recharts** — charts, via the shadcn chart wrapper
+- **Supabase** — database and auth (`@supabase/supabase-js` + `@supabase/ssr`)
+- **Vercel** — deployment
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the dashboard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Connecting Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
+2. Copy `.env.example` to `.env.local` and fill in the values from
+   **Project Settings → API**:
 
-## Learn More
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. Query from code:
+   - **Server Components / Route Handlers / Server Actions:**
+     `const supabase = await createClient()` from `@/lib/supabase/server`
+   - **Client Components:**
+     `const supabase = createClient()` from `@/lib/supabase/client`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Auth session refresh is handled in `src/proxy.ts` (it no-ops until the env
+vars above are set).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploying to Vercel
 
-## Deploy on Vercel
+1. Push this repo to GitHub.
+2. Import it at [vercel.com/new](https://vercel.com/new) — Next.js is detected
+   automatically, no config needed.
+3. Add the two `NEXT_PUBLIC_SUPABASE_*` environment variables in
+   **Project Settings → Environment Variables**.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Alternatively, deploy from the CLI: `npx vercel`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project structure
+
+```
+src/
+├── app/                  # App Router pages and layout
+│   ├── layout.tsx        # Root layout (fonts, Toaster)
+│   └── page.tsx          # Dashboard overview page
+├── components/
+│   ├── ui/               # shadcn/ui components
+│   ├── app-sidebar.tsx   # Dashboard navigation sidebar
+│   └── overview-chart.tsx# Revenue area chart (placeholder data)
+├── lib/
+│   ├── supabase/         # Supabase client factories (browser + server)
+│   └── utils.ts          # cn() class helper
+└── proxy.ts              # Auth session middleware
+```
+
+## Adding more UI components
+
+```bash
+npx shadcn@latest add <component-name>   # e.g. calendar, popover, form
+```
+
+Browse the catalog at [ui.shadcn.com](https://ui.shadcn.com/docs/components).
