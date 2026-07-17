@@ -7,7 +7,7 @@
 // CSV quirks handled here: CP949 encoding, quoted multi-line error fields,
 // and the NICE/CRETOP num_grade<->char_grade column swap.
 
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
 import { parse } from "csv-parse/sync"
@@ -18,7 +18,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 const FINAL_TABLE_CSV = path.join(root, "final_table_202607141528.csv")
 const RESULT_BS_CSV = path.join(root, "result_bs_202607161720.csv")
-const MIGRATION_SQL = path.join(root, "supabase", "migrations", "0001_init.sql")
+const MIGRATIONS_DIR = path.join(root, "supabase", "migrations")
 
 // --- load SUPABASE_DB_URL from .env.local ---
 const envFile = readFileSync(path.join(root, ".env.local"), "utf8")
@@ -139,7 +139,10 @@ async function bulkInsert(table, columns, rows, batchSize) {
 
 try {
   console.log("Applying schema (drops & recreates tables)...")
-  await client.query(readFileSync(MIGRATION_SQL, "utf8"))
+  for (const f of readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+    console.log(`  migration: ${f}`)
+    await client.query(readFileSync(path.join(MIGRATIONS_DIR, f), "utf8"))
+  }
 
   await bulkInsert(
     "rating_requests",

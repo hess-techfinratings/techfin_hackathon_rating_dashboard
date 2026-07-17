@@ -6,6 +6,7 @@
 drop view if exists v_companies;
 drop view if exists v_grade_distribution;
 drop view if exists v_overview_stats;
+drop table if exists grade_analyses;
 drop table if exists financial_statements;
 drop table if exists rating_requests;
 

@@ -24,6 +24,7 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - Money: `formatKRW` (억/만 compact) for cards & summaries, `formatWon` (원 with separators) for statement tables, chart axes in 억원; numeric cells get `tabular-nums` + `text-right`.
 - Dates: `formatYmd` / `fiscalYear` from `@/lib/format` — never hand-slice date strings in components.
 - Grade display: `Badge variant="secondary"` for grade_type, `variant="outline"` for 미산출; grades render as plain text, "–" for null.
+- AI analysis: OpenAI chat completions via `/api/analysis/[no_req]` (POST, `?force=1` regenerates); model from `OPENAI_MODEL` (default gpt-4o-mini); results cached in `grade_analyses`; "낮은 등급" = `cv_num_grade ≥ 17` (`LOW_GRADE_THRESHOLD` in `src/lib/analysis.ts`); missing `OPENAI_API_KEY` must degrade to a notice, never an error.
 
 ## Page & function harmony — adding a new page
 1. Place it under `src/app/(dashboard)/<route>/page.tsx` so it inherits the sidebar layout.
@@ -46,9 +47,11 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - 2026-07-17 Built data pipeline: migration (tables/views/RLS) + `scripts/setup-db.mjs` (cp949, multi-line CSV, grade-column swap fix); imported 5,267 requests + 15,900 financial rows.
 - 2026-07-17 Built pages: Overview (stats, per-agency grade distribution, recent requests), Companies (30 with financials), Company detail (grade cards, 2-year key-metric chart, BS/IS tables).
 - 2026-07-17 Hardened missing-env case (SetupNotice instead of 500) after Vercel deploy failed without env vars.
+- 2026-07-17 AI grade-reason analysis: `grade_analyses` cache table (migration 0002 + `scripts/apply-sql.mjs`), OpenAI-backed API route, `GradeAnalysisCard` on detail pages of C계열-이하 companies (13 of 30).
 
 ## What to do next
 - [ ] Verify production site loads after Supabase env vars are added in Vercel (blocked: user adds `NEXT_PUBLIC_SUPABASE_*` and redeploys).
+- [ ] End-to-end test of AI analysis generation (blocked: user adds `OPENAI_API_KEY` to `.env.local` and Vercel).
 - [ ] Agency agreement analysis — grade divergence (notches) between 크레디뷰/나이스/크레탑, e.g. scatter or diff distribution.
 - [ ] Filters/search on rating requests (date range, grade_type, error code).
 - [ ] Error-code breakdown page for the 825 미산출 cases.

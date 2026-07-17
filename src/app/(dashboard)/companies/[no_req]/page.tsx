@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { CompanyFinancialChart, type KeyMetricRow } from "@/components/company-financial-chart"
+import { GradeAnalysisCard } from "@/components/grade-analysis-card"
 import { PageHeader } from "@/components/page-header"
 import { SetupNotice } from "@/components/setup-notice"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { type GradeAnalysis, isLowGrade } from "@/lib/analysis"
 import { fiscalYear, formatKRW, formatWon, formatYmd } from "@/lib/format"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { FinancialStatementRow, RatingRequest } from "@/lib/types"
@@ -121,7 +123,7 @@ export default async function CompanyDetailPage({
   }
   const supabase = await createClient()
 
-  const [reqRes, fsRes] = await Promise.all([
+  const [reqRes, fsRes, analysisRes] = await Promise.all([
     supabase
       .from("rating_requests")
       .select("*")
@@ -134,6 +136,11 @@ export default async function CompanyDetailPage({
       .order("acct_cd")
       .limit(2000)
       .returns<FinancialStatementRow[]>(),
+    supabase
+      .from("grade_analyses")
+      .select("*")
+      .eq("no_req", no_req)
+      .maybeSingle<GradeAnalysis>(),
   ])
 
   if (reqRes.error || fsRes.error) {
@@ -212,6 +219,15 @@ export default async function CompanyDetailPage({
             </>
           )}
         </div>
+
+        {isLowGrade(req.cv_num_grade) && (
+          <GradeAnalysisCard
+            noReq={no_req}
+            charGrade={req.cv_char_grade}
+            initial={analysisRes.data ?? null}
+            aiConfigured={Boolean(process.env.OPENAI_API_KEY)}
+          />
+        )}
 
         <Card>
           <CardHeader>
