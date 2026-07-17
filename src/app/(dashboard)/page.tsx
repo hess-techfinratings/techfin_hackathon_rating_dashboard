@@ -1,4 +1,4 @@
-import { Activity, Building2, FileCheck2, FileX2 } from "lucide-react"
+import { Activity, Building2, FileCheck2, FileX2, Gauge } from "lucide-react"
 import Link from "next/link"
 
 import { BandComposition } from "@/components/band-composition"
@@ -65,6 +65,12 @@ export default async function OverviewPage() {
   const gradedPct = stats.total_requests
     ? Math.round((stats.cv_graded / stats.total_requests) * 100)
     : 0
+  const ungradedPct = stats.total_requests
+    ? Math.round((stats.type_none / stats.total_requests) * 100)
+    : 0
+  const misPct = stats.cv_graded
+    ? Math.round(((stats.type_mis + stats.type_mis_fs) / stats.cv_graded) * 100)
+    : 0
 
   const byAgency: Record<"crediview" | "nice" | "cretop", GradeCount[]> = {
     crediview: [],
@@ -91,10 +97,16 @@ export default async function OverviewPage() {
       icon: FileCheck2,
     },
     {
-      title: "등급 미산출",
-      value: `${stats.type_none.toLocaleString()}건`,
-      sub: "산출불가 사유는 오류코드 참조",
+      title: "산출불가율",
+      value: `${ungradedPct}%`,
+      sub: `목표 0% · 미산출 ${stats.type_none.toLocaleString()}건`,
       icon: FileX2,
+    },
+    {
+      title: "MIS 등급 산출 비율",
+      value: `${misPct}%`,
+      sub: `목표 70% · 산출 ${stats.cv_graded.toLocaleString()}건 중 MIS 포함 ${(stats.type_mis + stats.type_mis_fs).toLocaleString()}건`,
+      icon: Gauge,
     },
     {
       title: "재무제표 보유 기업",
@@ -108,7 +120,7 @@ export default async function OverviewPage() {
     <>
       <PageHeader title="Overview" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {cards.map((c) => (
             <Card key={c.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

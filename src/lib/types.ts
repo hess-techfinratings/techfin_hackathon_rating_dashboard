@@ -63,6 +63,14 @@ export interface AgencyDivergenceRow {
   cnt: number
 }
 
+export interface AgencyCorrelationRow {
+  agency: "nice" | "cretop"
+  spearman: number
+  pairs: number
+  cv_bbplus_below_pct: number
+  other_bbplus_below_pct: number
+}
+
 export interface ErrorCodeRow {
   system: "MIS" | "FS"
   code: string

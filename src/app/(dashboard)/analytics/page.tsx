@@ -10,7 +10,7 @@ import {
 import { DivergenceChart, type DivergenceRow } from "@/components/divergence-chart"
 import { MonthlyTrendChart } from "@/components/monthly-trend-chart"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { AgencyDivergenceRow, MonthlyTrendViewRow } from "@/lib/types"
+import type { AgencyCorrelationRow, AgencyDivergenceRow, MonthlyTrendViewRow } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -39,12 +39,13 @@ export default async function AnalyticsPage() {
   }
   const supabase = await createClient()
 
-  const [trendRes, divRes] = await Promise.all([
+  const [trendRes, divRes, corrRes] = await Promise.all([
     supabase.from("v_monthly_trend").select("*").order("month").returns<MonthlyTrendViewRow[]>(),
     supabase.from("v_agency_divergence").select("*").returns<AgencyDivergenceRow[]>(),
+    supabase.from("v_agency_correlation").select("*").returns<AgencyCorrelationRow[]>(),
   ])
 
-  const firstError = trendRes.error ?? divRes.error
+  const firstError = trendRes.error ?? divRes.error ?? corrRes.error
   if (firstError) {
     return (
       <>
@@ -71,7 +72,11 @@ export default async function AnalyticsPage() {
   const agencies = [
     { key: "nice" as const, label: "나이스", subject: "나이스가" },
     { key: "cretop" as const, label: "크레탑", subject: "크레탑이" },
-  ].map((a) => ({ ...a, stats: agreementStats(divRows, a.key) }))
+  ].map((a) => ({
+    ...a,
+    stats: agreementStats(divRows, a.key),
+    corr: (corrRes.data ?? []).find((c) => c.agency === a.key) ?? null,
+  }))
 
   return (
     <>
@@ -85,19 +90,33 @@ export default async function AnalyticsPage() {
                   크레디뷰 vs {a.label} — 비교 가능 {a.stats.total.toLocaleString()}건
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex gap-6">
-                <div>
-                  <div className="text-2xl font-semibold tabular-nums">{a.stats.exact}%</div>
-                  <p className="text-xs text-muted-foreground">등급 일치</p>
+              <CardContent className="space-y-3">
+                <div className="flex gap-6">
+                  <div>
+                    <div className="text-2xl font-semibold tabular-nums">
+                      {a.corr ? Number(a.corr.spearman).toFixed(2) : "–"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">스피어만 상관계수</p>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold tabular-nums">{a.stats.exact}%</div>
+                    <p className="text-xs text-muted-foreground">등급 일치</p>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold tabular-nums">{a.stats.within1}%</div>
+                    <p className="text-xs text-muted-foreground">±1노치 이내</p>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold tabular-nums">{a.stats.conservative}%</div>
+                    <p className="text-xs text-muted-foreground">{a.subject} 더 보수적</p>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-2xl font-semibold tabular-nums">{a.stats.within1}%</div>
-                  <p className="text-xs text-muted-foreground">±1노치 이내</p>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold tabular-nums">{a.stats.conservative}%</div>
-                  <p className="text-xs text-muted-foreground">{a.subject} 더 보수적</p>
-                </div>
+                {a.corr && (
+                  <p className="text-xs text-muted-foreground">
+                    BB+ 이하 비중: 크레디뷰 {Math.round(a.corr.cv_bbplus_below_pct)}% · {a.label}{" "}
+                    {Math.round(a.corr.other_bbplus_below_pct)}%
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}

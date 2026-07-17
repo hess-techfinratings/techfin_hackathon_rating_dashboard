@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type GradeAnalysis, isLowGrade } from "@/lib/analysis"
 import { fiscalYear, formatKRW, formatWon, formatYmd } from "@/lib/format"
+import { computeRiskFlags } from "@/lib/risk-flags"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { FinancialStatementRow, RatingRequest } from "@/lib/types"
 
@@ -174,6 +175,11 @@ export default async function CompanyDetailPage({
     ),
   }))
 
+  const riskFlags = computeRiskFlags(
+    { get: (cd, year) => byCode.get(cd)?.amounts[year] ?? null },
+    years
+  )
+
   const agencies = [
     { label: "크레디뷰", charGrade: req.cv_char_grade, numGrade: req.cv_num_grade, base: formatYmd(req.cv_dm_base) },
     { label: "나이스", charGrade: req.n_char_grade, numGrade: req.n_num_grade, base: formatYmd(req.n_dm_base) },
@@ -220,6 +226,19 @@ export default async function CompanyDetailPage({
             </>
           )}
         </div>
+
+        {riskFlags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+            <span className="text-xs font-medium text-destructive">
+              위험 신호 {riskFlags.length}건 (재무제표 기준)
+            </span>
+            {riskFlags.map((f) => (
+              <Badge key={f.code} variant="outline" className="border-destructive/40 font-normal text-destructive">
+                {f.label}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {isLowGrade(req.cv_num_grade) && (
           <GradeAnalysisCard

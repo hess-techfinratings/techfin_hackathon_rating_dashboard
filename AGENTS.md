@@ -44,6 +44,10 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
 
+## Legacy report lessons (크레디뷰 등급 산출 현황 주간보고, PDF)
+- Adopted: KPI 목표치 (산출불가율 0%, MIS 산출 비율 70%) on Overview; Spearman 상관계수 + BB+ 이하 비중 (`v_agency_correlation`, migration 0004); rule-based 위험 신호 flags (`src/lib/risk-flags.ts`, F01~F04 rule family) on detail pages.
+- Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
+
 ## What was done
 - 2026-07-17 Scaffolded Next.js 16 + Tailwind v4 + shadcn/ui (base-ui) + Supabase clients; pushed to GitHub, connected Vercel.
 - 2026-07-17 Built data pipeline: migration (tables/views/RLS) + `scripts/setup-db.mjs` (cp949, multi-line CSV, grade-column swap fix); imported 5,267 requests + 15,900 financial rows.
@@ -51,6 +55,7 @@ Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests com
 - 2026-07-17 Hardened missing-env case (SetupNotice instead of 500) after Vercel deploy failed without env vars.
 - 2026-07-17 AI grade-reason analysis: `grade_analyses` cache table (migration 0002 + `scripts/apply-sql.mjs`), OpenAI-backed API route, `GradeAnalysisCard` on detail pages of C계열-이하 companies (13 of 30).
 - 2026-07-17 UI/UX overhaul: grade-band system (GradeBadge, RatingSpectrum, BandComposition), Analytics page (agency divergence + monthly trend, views in migration 0003), 미산출 분석 page, Companies search/band filter, dark mode, loading skeletons; verified with headless-Edge screenshots.
+- 2026-07-17 Legacy-report-inspired upgrades: target KPIs (산출불가율/MIS 비율), Spearman correlation + BB+ 이하 비중 on Analytics (크레탑 0.65, 나이스 0.46), deterministic 위험 신호 flags on company detail.
 
 ## What to do next
 - [ ] Verify production site loads after Supabase env vars are added in Vercel (blocked: user adds `NEXT_PUBLIC_SUPABASE_*` and redeploys).
