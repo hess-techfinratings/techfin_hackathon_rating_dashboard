@@ -1,19 +1,12 @@
 "use client"
 
-import {
-  BarChart3,
-  LayoutDashboard,
-  Settings,
-  Table2,
-  Users,
-} from "lucide-react"
+import { Building2, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -25,9 +18,7 @@ import {
 
 const navItems = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
-  { title: "Analytics", href: "/analytics", icon: BarChart3 },
-  { title: "Data", href: "/data", icon: Table2 },
-  { title: "Users", href: "/users", icon: Users },
+  { title: "Companies", href: "/companies", icon: Building2 },
 ]
 
 export function AppSidebar() {
@@ -52,7 +43,11 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
-                    isActive={pathname === item.href}
+                    isActive={
+                      item.href === "/"
+                        ? pathname === "/"
+                        : pathname.startsWith(item.href)
+                    }
                   >
                     <item.icon />
                     <span>{item.title}</span>
@@ -63,16 +58,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton render={<Link href="/settings" />}>
-              <Settings />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   )
 }
