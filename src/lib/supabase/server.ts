@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
+/** False when NEXT_PUBLIC_SUPABASE_* env vars are missing (e.g. not set on Vercel). */
+export function isSupabaseConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+}
+
 export async function createClient() {
   const cookieStore = await cookies()
 

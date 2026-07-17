@@ -19,12 +19,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { fiscalYear, formatKRW } from "@/lib/format"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { CompanySummary } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 export default async function CompaniesPage() {
+  if (!isSupabaseConfigured()) {
+    return (
+      <>
+        <PageHeader title="Companies" />
+        <SetupNotice error="NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다. Vercel 배포라면 Project Settings → Environment Variables에 추가하세요." />
+      </>
+    )
+  }
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("v_companies")

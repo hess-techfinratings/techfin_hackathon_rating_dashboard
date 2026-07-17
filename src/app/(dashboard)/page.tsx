@@ -21,12 +21,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatYmd } from "@/lib/format"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { GradeDistributionRow, OverviewStats, RatingRequest } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 export default async function OverviewPage() {
+  if (!isSupabaseConfigured()) {
+    return (
+      <>
+        <PageHeader title="Overview" />
+        <SetupNotice error="NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다. Vercel 배포라면 Project Settings → Environment Variables에 추가하세요." />
+      </>
+    )
+  }
   const supabase = await createClient()
 
   const [statsRes, distRes, recentRes] = await Promise.all([

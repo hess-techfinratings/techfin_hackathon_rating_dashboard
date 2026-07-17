@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { fiscalYear, formatKRW, formatWon, formatYmd } from "@/lib/format"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { FinancialStatementRow, RatingRequest } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -111,6 +111,14 @@ export default async function CompanyDetailPage({
   params: Promise<{ no_req: string }>
 }) {
   const { no_req } = await params
+  if (!isSupabaseConfigured()) {
+    return (
+      <>
+        <PageHeader title={no_req} />
+        <SetupNotice error="NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다. Vercel 배포라면 Project Settings → Environment Variables에 추가하세요." />
+      </>
+    )
+  }
   const supabase = await createClient()
 
   const [reqRes, fsRes] = await Promise.all([
