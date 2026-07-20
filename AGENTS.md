@@ -41,7 +41,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 8. Types for query results go in `src/lib/types.ts`; client components only for recharts/tabs interactivity.
 
 ## Data model
-- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman).
+- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005, rolling 7-day windows anchored on max da_calc — data ends 2026-07-03, so calendar weeks would be empty).
 - Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익 · 111519 단기차입금 · 116000 유동부채 · 118100 자본금 (risk flags). Leading spaces in `acct_nm` encode hierarchy depth.
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
@@ -51,6 +51,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
+- 2026-07-20 Weekly volume KPI on Overview: `v_weekly_stats` view (migration 0005) + "최근 1주 신청" card with 전주 대비 diff; KPI grid now `xl:grid-cols-3` (6 cards).
 - 2026-07-17 Scaffolded Next.js 16 + Tailwind v4 + shadcn/ui (base-ui) + Supabase clients; pushed to GitHub, connected Vercel.
 - 2026-07-17 Built data pipeline: migration (tables/views/RLS) + `scripts/setup-db.mjs` (cp949, multi-line CSV, grade-column swap fix); imported 5,267 requests + 15,900 financial rows.
 - 2026-07-17 Built pages: Overview (stats, per-agency grade distribution, recent requests), Companies (30 with financials), Company detail (grade cards, 2-year key-metric chart, BS/IS tables).

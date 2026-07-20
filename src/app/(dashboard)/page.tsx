@@ -1,4 +1,4 @@
-import { Activity, Building2, FileCheck2, FileX2, Gauge } from "lucide-react"
+import { Activity, Building2, CalendarRange, FileCheck2, FileX2, Gauge } from "lucide-react"
 import Link from "next/link"
 
 import { BandComposition } from "@/components/band-composition"
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table"
 import { formatYmd } from "@/lib/format"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { GradeDistributionRow, OverviewStats, RatingRequest } from "@/lib/types"
+import type { GradeDistributionRow, OverviewStats, RatingRequest, WeeklyStats } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -39,8 +39,9 @@ export default async function OverviewPage() {
   }
   const supabase = await createClient()
 
-  const [statsRes, distRes, recentRes] = await Promise.all([
+  const [statsRes, weeklyRes, distRes, recentRes] = await Promise.all([
     supabase.from("v_overview_stats").select("*").single<OverviewStats>(),
+    supabase.from("v_weekly_stats").select("*").single<WeeklyStats>(),
     supabase.from("v_grade_distribution").select("*").returns<GradeDistributionRow[]>(),
     supabase
       .from("rating_requests")
@@ -51,7 +52,7 @@ export default async function OverviewPage() {
       .returns<RatingRequest[]>(),
   ])
 
-  const firstError = statsRes.error ?? distRes.error ?? recentRes.error
+  const firstError = statsRes.error ?? weeklyRes.error ?? distRes.error ?? recentRes.error
   if (firstError || !statsRes.data) {
     return (
       <>
@@ -72,6 +73,14 @@ export default async function OverviewPage() {
     ? Math.round(((stats.type_mis + stats.type_mis_fs) / stats.cv_graded) * 100)
     : 0
 
+  const weekly = weeklyRes.data
+  const weeklyDelta = weekly ? weekly.this_week - weekly.prev_week : 0
+  const weeklyPct =
+    weekly && weekly.prev_week
+      ? Math.round((weeklyDelta / weekly.prev_week) * 1000) / 10
+      : null
+  const signed = (n: number) => (n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString())
+
   const byAgency: Record<"crediview" | "nice" | "cretop", GradeCount[]> = {
     crediview: [],
     nice: [],
@@ -90,6 +99,16 @@ export default async function OverviewPage() {
       sub: `기업 수 ${stats.distinct_companies.toLocaleString()}개 (사업자번호 기준)`,
       icon: Activity,
     },
+    ...(weekly
+      ? [
+          {
+            title: "최근 1주 신청",
+            value: `${weekly.this_week.toLocaleString()}건`,
+            sub: `${weekly.week_start.slice(5)}~${weekly.week_end.slice(5)} · 전주(${weekly.prev_week.toLocaleString()}건) 대비 ${signed(weeklyDelta)}건${weeklyPct !== null ? ` (${signed(weeklyPct)}%)` : ""}`,
+            icon: CalendarRange,
+          },
+        ]
+      : []),
     {
       title: "크레디뷰 등급 산출",
       value: `${stats.cv_graded.toLocaleString()}건`,
@@ -120,7 +139,7 @@ export default async function OverviewPage() {
     <>
       <PageHeader title="Overview" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {cards.map((c) => (
             <Card key={c.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

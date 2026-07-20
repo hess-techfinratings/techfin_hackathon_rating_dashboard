@@ -43,6 +43,13 @@ export interface OverviewStats {
   companies_with_financials: number
 }
 
+export interface WeeklyStats {
+  week_start: string
+  week_end: string
+  this_week: number
+  prev_week: number
+}
+
 export interface GradeDistributionRow {
   agency: "crediview" | "nice" | "cretop"
   char_grade: string
