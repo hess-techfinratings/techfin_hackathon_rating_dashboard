@@ -50,6 +50,13 @@ export interface WeeklyTrendViewRow {
   ungraded: number
 }
 
+export interface WeeklyErrorsViewRow {
+  week_start: string
+  mis_errors: number
+  fs_errors: number
+  ungraded: number
+}
+
 export interface WeeklyStats {
   week_start: string
   week_end: string

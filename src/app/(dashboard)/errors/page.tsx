@@ -16,8 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { WeeklyErrorsChart } from "@/components/weekly-errors-chart"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { ErrorCodeRow } from "@/lib/types"
+import type { ErrorCodeRow, WeeklyErrorsViewRow } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -71,17 +72,26 @@ export default async function ErrorsPage() {
     )
   }
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("v_error_codes")
-    .select("*")
-    .order("cnt", { ascending: false })
-    .returns<ErrorCodeRow[]>()
+  const [{ data, error }, weeklyRes] = await Promise.all([
+    supabase
+      .from("v_error_codes")
+      .select("*")
+      .order("cnt", { ascending: false })
+      .returns<ErrorCodeRow[]>(),
+    supabase
+      .from("v_weekly_errors")
+      .select("*")
+      .order("week_start", { ascending: false })
+      .limit(12)
+      .returns<WeeklyErrorsViewRow[]>(),
+  ])
 
-  if (error) {
+  const firstError = error ?? weeklyRes.error
+  if (firstError) {
     return (
       <>
         <PageHeader title="미산출 분석" />
-        <SetupNotice error={error.message} />
+        <SetupNotice error={firstError.message} />
       </>
     )
   }
@@ -120,6 +130,18 @@ export default async function ErrorsPage() {
             )
           })}
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>주별 오류 발생 추이</CardTitle>
+            <CardDescription>
+              최근 12주 시스템별 오류 발생 건수 (월요일 시작 주 기준 · 한 신청에 두 오류가 함께 발생할 수 있어 합산 불가)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WeeklyErrorsChart data={[...(weeklyRes.data ?? [])].reverse()} />
+          </CardContent>
+        </Card>
 
         {systems.map((s) => (
           <Card key={s.key}>
