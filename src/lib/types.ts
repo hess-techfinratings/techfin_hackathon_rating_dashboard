@@ -62,6 +62,12 @@ export interface WeeklyStats {
   week_end: string
   this_week: number
   prev_week: number
+  this_week_mis: number
+  prev_week_mis: number
+  this_week_fs: number
+  prev_week_fs: number
+  this_week_ungraded: number
+  prev_week_ungraded: number
 }
 
 export interface GradeDistributionRow {

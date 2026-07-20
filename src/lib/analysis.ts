@@ -16,3 +16,10 @@ export interface GradeAnalysis {
   analysis: string
   created_at: string
 }
+
+export interface WeeklySummary {
+  week_end: string
+  model: string
+  summary: string
+  created_at: string
+}

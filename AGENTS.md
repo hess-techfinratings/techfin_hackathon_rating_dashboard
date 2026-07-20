@@ -28,7 +28,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Money: `formatKRW` (억/만 compact) for cards & summaries, `formatWon` (원 with separators) for statement tables, chart axes in 억원; numeric cells get `tabular-nums` + `text-right`.
 - Dates: `formatYmd` / `fiscalYear` from `@/lib/format` — never hand-slice date strings in components.
 - Grade display: `Badge variant="secondary"` for grade_type, `variant="outline"` for 미산출; grades render as plain text, "–" for null.
-- AI analysis: OpenAI chat completions via `/api/analysis/[no_req]` (POST, `?force=1` regenerates); model from `OPENAI_MODEL` (default gpt-4o-mini); results cached in `grade_analyses`; "낮은 등급" = `cv_num_grade ≥ 17` (`LOW_GRADE_THRESHOLD` in `src/lib/analysis.ts`); missing `OPENAI_API_KEY` must degrade to a notice, never an error.
+- AI analysis: OpenAI chat completions via `/api/analysis/[no_req]` and `/api/weekly-summary` (POST, `?force=1` regenerates); model from `OPENAI_MODEL` (default gpt-4o-mini); results cached in `grade_analyses` / `weekly_summaries`; "낮은 등급" = `cv_num_grade ≥ 17` (`LOW_GRADE_THRESHOLD` in `src/lib/analysis.ts`); missing `OPENAI_API_KEY` must degrade to a notice, never an error; prompts must forbid inventing facts not in the supplied data.
 
 ## Page & function harmony — adding a new page
 1. Place it under `src/app/(dashboard)/<route>/page.tsx` so it inherits the sidebar layout.
@@ -41,7 +41,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 8. Types for query results go in `src/lib/types.ts`; client components only for recharts/tabs interactivity.
 
 ## Data model
-- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005, rolling 7-day windows anchored on max da_calc — data ends 2026-07-03, so calendar weeks would be empty) · `v_weekly_trend` (0006, ISO weeks) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both).
+- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable) · `weekly_summaries` (AI weekly-comment cache, PK week_end, anon-writable, 0008). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005, extended 0008 with MIS/FS/미산출 window counts; rolling 7-day windows anchored on max da_calc — data ends 2026-07-03, so calendar weeks would be empty) · `v_weekly_trend` (0006, ISO weeks) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both).
 - Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익 · 111519 단기차입금 · 116000 유동부채 · 118100 자본금 (risk flags). Leading spaces in `acct_nm` encode hierarchy depth.
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
@@ -51,6 +51,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
+- 2026-07-20 주간 변화 요약 on 미산출 분석: WoW deltas (신청/MIS/FS/미산출) + AI comment via `/api/weekly-summary`, cached in `weekly_summaries` (migration 0008 also extends `v_weekly_stats`); E2E-tested with real key.
 - 2026-07-20 Weekly error trend on 미산출 분석: `v_weekly_errors` (migration 0007), `WeeklyErrorsChart` grouped MIS(chart-1)/FS(chart-8) bars — pair CVD-validated both modes.
 - 2026-07-20 Weekly trend chart on Analytics: `v_weekly_trend` view (migration 0006), `WeeklyTrendChart` (last 12 weeks, stacked 산출/미산출), paired with monthly chart in a 2-col grid.
 - 2026-07-20 Weekly volume KPI on Overview: `v_weekly_stats` view (migration 0005) + "최근 1주 신청" card with 전주 대비 diff; KPI grid now `xl:grid-cols-3` (6 cards).
@@ -64,6 +65,6 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - 2026-07-17 Production went live after user added `NEXT_PUBLIC_SUPABASE_*` to Vercel; verified serving real data.
 
 ## What to do next
-- [ ] End-to-end test of AI analysis generation (blocked: user adds `OPENAI_API_KEY` to `.env.local` and Vercel — key not yet present in any location we can read).
+- [ ] E2E test of grade-reason analysis (`/api/analysis/[no_req]`) — `OPENAI_API_KEY` is now in `.env.local` (weekly-summary route verified with it 2026-07-20); unknown whether the key is set on Vercel.
 - [ ] Filters/search on the full rating-requests list (date range, grade_type, error code) — Companies has it; the 5,267-row request list has no page yet.
 - [ ] Lock down `grade_analyses` anon write policy (service-role key) if the project outlives the hackathon.

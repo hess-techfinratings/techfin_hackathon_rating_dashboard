@@ -17,8 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { WeeklyErrorsChart } from "@/components/weekly-errors-chart"
+import { WeeklySummaryCard } from "@/components/weekly-summary-card"
+import type { WeeklySummary } from "@/lib/analysis"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { ErrorCodeRow, WeeklyErrorsViewRow } from "@/lib/types"
+import type { ErrorCodeRow, WeeklyErrorsViewRow, WeeklyStats } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -72,7 +74,7 @@ export default async function ErrorsPage() {
     )
   }
   const supabase = await createClient()
-  const [{ data, error }, weeklyRes] = await Promise.all([
+  const [{ data, error }, weeklyRes, statsRes] = await Promise.all([
     supabase
       .from("v_error_codes")
       .select("*")
@@ -84,9 +86,20 @@ export default async function ErrorsPage() {
       .order("week_start", { ascending: false })
       .limit(12)
       .returns<WeeklyErrorsViewRow[]>(),
+    supabase.from("v_weekly_stats").select("*").single<WeeklyStats>(),
   ])
 
-  const firstError = error ?? weeklyRes.error
+  const cachedSummary = statsRes.data
+    ? (
+        await supabase
+          .from("weekly_summaries")
+          .select("*")
+          .eq("week_end", statsRes.data.week_end)
+          .maybeSingle<WeeklySummary>()
+      ).data
+    : null
+
+  const firstError = error ?? weeklyRes.error ?? statsRes.error
   if (firstError) {
     return (
       <>
@@ -130,6 +143,14 @@ export default async function ErrorsPage() {
             )
           })}
         </div>
+
+        {statsRes.data && (
+          <WeeklySummaryCard
+            stats={statsRes.data}
+            initial={cachedSummary ?? null}
+            aiConfigured={Boolean(process.env.OPENAI_API_KEY)}
+          />
+        )}
 
         <Card>
           <CardHeader>
