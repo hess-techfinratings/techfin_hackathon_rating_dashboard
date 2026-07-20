@@ -43,6 +43,13 @@ export interface OverviewStats {
   companies_with_financials: number
 }
 
+export interface WeeklyTrendViewRow {
+  week_start: string
+  total: number
+  graded: number
+  ungraded: number
+}
+
 export interface WeeklyStats {
   week_start: string
   week_end: string

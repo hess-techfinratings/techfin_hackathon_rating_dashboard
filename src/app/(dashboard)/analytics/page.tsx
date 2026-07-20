@@ -9,8 +9,14 @@ import {
 } from "@/components/ui/card"
 import { DivergenceChart, type DivergenceRow } from "@/components/divergence-chart"
 import { MonthlyTrendChart } from "@/components/monthly-trend-chart"
+import { WeeklyTrendChart } from "@/components/weekly-trend-chart"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { AgencyCorrelationRow, AgencyDivergenceRow, MonthlyTrendViewRow } from "@/lib/types"
+import type {
+  AgencyCorrelationRow,
+  AgencyDivergenceRow,
+  MonthlyTrendViewRow,
+  WeeklyTrendViewRow,
+} from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -39,13 +45,19 @@ export default async function AnalyticsPage() {
   }
   const supabase = await createClient()
 
-  const [trendRes, divRes, corrRes] = await Promise.all([
+  const [trendRes, weeklyRes, divRes, corrRes] = await Promise.all([
     supabase.from("v_monthly_trend").select("*").order("month").returns<MonthlyTrendViewRow[]>(),
+    supabase
+      .from("v_weekly_trend")
+      .select("*")
+      .order("week_start", { ascending: false })
+      .limit(12)
+      .returns<WeeklyTrendViewRow[]>(),
     supabase.from("v_agency_divergence").select("*").returns<AgencyDivergenceRow[]>(),
     supabase.from("v_agency_correlation").select("*").returns<AgencyCorrelationRow[]>(),
   ])
 
-  const firstError = trendRes.error ?? divRes.error ?? corrRes.error
+  const firstError = trendRes.error ?? weeklyRes.error ?? divRes.error ?? corrRes.error
   if (firstError) {
     return (
       <>
@@ -134,15 +146,29 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>월별 평가 신청 추이</CardTitle>
-            <CardDescription>월별 신청 건수와 등급 산출/미산출 구성</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MonthlyTrendChart data={trendRes.data ?? []} />
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>주별 평가 신청 추이</CardTitle>
+              <CardDescription>
+                최근 12주 신청 건수와 등급 산출/미산출 구성 (월요일 시작 주 기준)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WeeklyTrendChart data={[...(weeklyRes.data ?? [])].reverse()} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>월별 평가 신청 추이</CardTitle>
+              <CardDescription>월별 신청 건수와 등급 산출/미산출 구성</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MonthlyTrendChart data={trendRes.data ?? []} />
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </>
   )
