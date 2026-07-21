@@ -105,6 +105,13 @@ export interface ErrorCodeRow {
   cnt: number
 }
 
+export interface GradePairRow {
+  agency: "nice" | "cretop"
+  cv_grade: number
+  other_grade: number
+  cnt: number
+}
+
 export type RequestListRow = Pick<
   RatingRequest,
   | "no_req"
