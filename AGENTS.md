@@ -8,11 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests compared across three agencies (크레디뷰/나이스/크레탑), with 2-year financial statements for 30 companies. Stack: Next.js 16 (App Router, Turbopack) · Tailwind v4 · shadcn/ui · Supabase · Vercel. Maintained via the `/claude-md` skill.
 
-Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys from `main` at github.com/hess-techfinratings/techfin_hackathon_rating_dashboard). Pages: `/` Overview · `/analytics` · `/companies` (+`/[no_req]` detail) · `/errors` 미산출 분석.
+Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys from `main` at github.com/hess-techfinratings/techfin_hackathon_rating_dashboard). Pages: `/` Overview · `/analytics` · `/companies` (+`/[no_req]` detail) · `/requests` 평가 신청 목록 · `/errors` 미산출 분석.
 
 ## Rules
 - shadcn/ui only — do NOT add NextUI/HeroUI or Chakra UI (styling systems conflict; decided 2026-07-17).
 - This shadcn is the **base-ui variant**: compose with `render={<Link … />}`, never Radix's `asChild` (fails typecheck).
+- Constants shared between a server page and a client component live in `src/lib/` — exporting them from a `"use client"` file hands the server a client-reference proxy (`.find is not a function` at runtime, not build time).
 - Raw CSVs are CP949-encoded and **gitignored** — never commit them, never parse them line-by-line (quoted multi-line fields), always decode cp949.
 - In the raw CSVs, NICE/CRETOP `*_num_grade`↔`*_char_grade` are swapped; DB columns are already corrected — trust the DB, not the CSV headers.
 - `.env.local` holds `SUPABASE_DB_URL` (DB password!) — never commit it, never add it to Vercel; the deployed app only needs the two `NEXT_PUBLIC_SUPABASE_*` vars.
@@ -39,9 +40,10 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 6. Aggregations belong in SQL views (add to the migration), not in JS over full-table fetches; per-entity detail fetches are fine (≤1,000 rows/request PostgREST cap).
 7. Register the route in `navItems` in `src/components/app-sidebar.tsx` (top-level pages only).
 8. Types for query results go in `src/lib/types.ts`; client components only for recharts/tabs interactivity.
+9. Date filtering: page takes `searchParams` (a Promise — await it), parses with `parseDateRange` from `@/lib/date-range`, renders `<DateRangeFilter min max>` (bounds via `getDateBounds`) at the top of `<main>`; aggregates go through the `fn_*` RPC twins (null params = unbounded), week/month-bucketed views get `.gte/.lte` on the bucket column (`weekStartOf` for the from-edge). Filter state lives only in `?from/?to` URL params.
 
 ## Data model
-- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable) · `weekly_summaries` (AI weekly-comment cache, PK week_end, anon-writable, 0008). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005/0008, MIS/FS/미산출 window counts) · `v_weekly_trend` (0006) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both). All weekly views use **Sunday–Saturday calendar weeks** (0009); `v_weekly_stats` anchors on the week containing max da_calc (data ends Fri 2026-07-03 → latest week 06-28~07-04, partial; today's calendar week would be empty).
+- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable) · `weekly_summaries` (AI weekly-comment cache, PK week_end, anon-writable, 0008). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005/0008, MIS/FS/미산출 window counts) · `v_weekly_trend` (0006) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both). All weekly views use **Sunday–Saturday calendar weeks** (0009); `v_weekly_stats` anchors on the week containing max da_calc (data ends Fri 2026-07-03 → latest week 06-28~07-04, partial; today's calendar week would be empty). Date-range twins of the aggregate views live in 0010 as `fn_overview_stats/fn_grade_distribution/fn_agency_divergence/fn_agency_correlation/fn_error_codes(d_from, d_to)` (sql, stable, security invoker).
 - Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익 · 111519 단기차입금 · 116000 유동부채 · 118100 자본금 (risk flags). Leading spaces in `acct_nm` encode hierarchy depth.
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
@@ -51,6 +53,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
+- 2026-07-21 Calendar date-range filter (`DateRangeFilter`: range Calendar + 전체/4주/12주 presets, state in `?from/?to`) on Overview·Analytics·미산출; RPC fns in migration 0010; new `/requests` page (server-paginated 50/page with grade_type + error-code filters) closing the request-list roadmap item.
 - 2026-07-21 Sunday–Saturday weeks everywhere (migration 0009 redefines the three weekly views); moved 주간 변화 요약 card from 미산출 분석 to Overview (최근 1주 KPI card stays).
 - 2026-07-20 주간 변화 요약: WoW deltas (신청/MIS/FS/미산출) + AI comment via `/api/weekly-summary`, cached in `weekly_summaries` (migration 0008 also extends `v_weekly_stats`); E2E-tested with real key.
 - 2026-07-20 Weekly error trend on 미산출 분석: `v_weekly_errors` (migration 0007), `WeeklyErrorsChart` grouped MIS(chart-1)/FS(chart-8) bars — pair CVD-validated both modes.
@@ -67,5 +70,4 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 
 ## What to do next
 - [ ] E2E test of grade-reason analysis (`/api/analysis/[no_req]`) — `OPENAI_API_KEY` is now in `.env.local` (weekly-summary route verified with it 2026-07-20); unknown whether the key is set on Vercel.
-- [ ] Filters/search on the full rating-requests list (date range, grade_type, error code) — Companies has it; the 5,267-row request list has no page yet.
 - [ ] Lock down `grade_analyses` anon write policy (service-role key) if the project outlives the hackathon.

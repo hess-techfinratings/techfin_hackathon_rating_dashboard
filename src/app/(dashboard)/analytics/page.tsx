@@ -7,9 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { DateRangeFilter } from "@/components/date-range-filter"
 import { DivergenceChart, type DivergenceRow } from "@/components/divergence-chart"
 import { MonthlyTrendChart } from "@/components/monthly-trend-chart"
 import { WeeklyTrendChart } from "@/components/weekly-trend-chart"
+import { getDateBounds, parseDateRange, weekStartOf } from "@/lib/date-range"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type {
   AgencyCorrelationRow,
@@ -34,7 +36,11 @@ function agreementStats(rows: AgencyDivergenceRow[], agency: "nice" | "cretop") 
   }
 }
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   if (!isSupabaseConfigured()) {
     return (
       <>
@@ -44,17 +50,27 @@ export default async function AnalyticsPage() {
     )
   }
   const supabase = await createClient()
+  const range = parseDateRange(await searchParams)
+  const rpcArgs = { d_from: range.from, d_to: range.to }
 
-  const [trendRes, weeklyRes, divRes, corrRes] = await Promise.all([
-    supabase.from("v_monthly_trend").select("*").order("month").returns<MonthlyTrendViewRow[]>(),
-    supabase
-      .from("v_weekly_trend")
-      .select("*")
-      .order("week_start", { ascending: false })
-      .limit(12)
-      .returns<WeeklyTrendViewRow[]>(),
-    supabase.from("v_agency_divergence").select("*").returns<AgencyDivergenceRow[]>(),
-    supabase.from("v_agency_correlation").select("*").returns<AgencyCorrelationRow[]>(),
+  let monthlyQuery = supabase.from("v_monthly_trend").select("*").order("month")
+  if (range.from) monthlyQuery = monthlyQuery.gte("month", range.from.slice(0, 7))
+  if (range.to) monthlyQuery = monthlyQuery.lte("month", range.to.slice(0, 7))
+
+  let weeklyQuery = supabase
+    .from("v_weekly_trend")
+    .select("*")
+    .order("week_start", { ascending: false })
+    .limit(12)
+  if (range.from) weeklyQuery = weeklyQuery.gte("week_start", weekStartOf(range.from))
+  if (range.to) weeklyQuery = weeklyQuery.lte("week_start", range.to)
+
+  const [trendRes, weeklyRes, divRes, corrRes, bounds] = await Promise.all([
+    monthlyQuery.returns<MonthlyTrendViewRow[]>(),
+    weeklyQuery.returns<WeeklyTrendViewRow[]>(),
+    supabase.rpc("fn_agency_divergence", rpcArgs),
+    supabase.rpc("fn_agency_correlation", rpcArgs),
+    getDateBounds(supabase),
   ])
 
   const firstError = trendRes.error ?? weeklyRes.error ?? divRes.error ?? corrRes.error
@@ -67,7 +83,8 @@ export default async function AnalyticsPage() {
     )
   }
 
-  const divRows = divRes.data ?? []
+  const divRows = (divRes.data ?? []) as AgencyDivergenceRow[]
+  const corrRows = (corrRes.data ?? []) as AgencyCorrelationRow[]
   const diffs = divRows.map((r) => r.notch_diff)
   const [minDiff, maxDiff] = diffs.length
     ? [Math.min(...diffs), Math.max(...diffs)]
@@ -87,13 +104,14 @@ export default async function AnalyticsPage() {
   ].map((a) => ({
     ...a,
     stats: agreementStats(divRows, a.key),
-    corr: (corrRes.data ?? []).find((c) => c.agency === a.key) ?? null,
+    corr: corrRows.find((c) => c.agency === a.key) ?? null,
   }))
 
   return (
     <>
       <PageHeader title="Analytics" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        {bounds && <DateRangeFilter min={bounds.min} max={bounds.max} />}
         <div className="grid gap-4 sm:grid-cols-2">
           {agencies.map((a) => (
             <Card key={a.key}>

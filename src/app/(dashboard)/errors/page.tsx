@@ -16,7 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { DateRangeFilter } from "@/components/date-range-filter"
 import { WeeklyErrorsChart } from "@/components/weekly-errors-chart"
+import { getDateBounds, parseDateRange, weekStartOf } from "@/lib/date-range"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import type { ErrorCodeRow, WeeklyErrorsViewRow } from "@/lib/types"
 
@@ -62,7 +64,11 @@ function ErrorTable({ rows }: { rows: ErrorCodeRow[] }) {
   )
 }
 
-export default async function ErrorsPage() {
+export default async function ErrorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   if (!isSupabaseConfigured()) {
     return (
       <>
@@ -72,18 +78,22 @@ export default async function ErrorsPage() {
     )
   }
   const supabase = await createClient()
-  const [{ data, error }, weeklyRes] = await Promise.all([
+  const range = parseDateRange(await searchParams)
+
+  let weeklyQuery = supabase
+    .from("v_weekly_errors")
+    .select("*")
+    .order("week_start", { ascending: false })
+    .limit(12)
+  if (range.from) weeklyQuery = weeklyQuery.gte("week_start", weekStartOf(range.from))
+  if (range.to) weeklyQuery = weeklyQuery.lte("week_start", range.to)
+
+  const [{ data, error }, weeklyRes, bounds] = await Promise.all([
     supabase
-      .from("v_error_codes")
-      .select("*")
-      .order("cnt", { ascending: false })
-      .returns<ErrorCodeRow[]>(),
-    supabase
-      .from("v_weekly_errors")
-      .select("*")
-      .order("week_start", { ascending: false })
-      .limit(12)
-      .returns<WeeklyErrorsViewRow[]>(),
+      .rpc("fn_error_codes", { d_from: range.from, d_to: range.to })
+      .order("cnt", { ascending: false }),
+    weeklyQuery.returns<WeeklyErrorsViewRow[]>(),
+    getDateBounds(supabase),
   ])
 
   const firstError = error ?? weeklyRes.error
@@ -96,7 +106,7 @@ export default async function ErrorsPage() {
     )
   }
 
-  const rows = data ?? []
+  const rows = (data ?? []) as ErrorCodeRow[]
   const systems = [
     { key: "MIS" as const, title: "MIS 산출불가 사유", desc: "경영정보등급(MIS) 오류코드별 건수" },
     { key: "FS" as const, title: "FS 산출불가 사유", desc: "재무등급(FS) 오류코드별 건수" },
@@ -106,6 +116,7 @@ export default async function ErrorsPage() {
     <>
       <PageHeader title="미산출 분석" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        {bounds && <DateRangeFilter min={bounds.min} max={bounds.max} />}
         <div className="grid gap-4 sm:grid-cols-2">
           {systems.map((s) => {
             const total = rows

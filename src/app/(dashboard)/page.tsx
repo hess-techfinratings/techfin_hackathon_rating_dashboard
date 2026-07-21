@@ -2,12 +2,14 @@ import { Activity, Building2, CalendarRange, FileCheck2, FileX2, Gauge } from "l
 import Link from "next/link"
 
 import { BandComposition } from "@/components/band-composition"
+import { DateRangeFilter } from "@/components/date-range-filter"
 import { GradeBadge } from "@/components/grade-badge"
 import { GradeDistributionChart, type GradeCount } from "@/components/grade-distribution-chart"
 import { PageHeader } from "@/components/page-header"
 import { SetupNotice } from "@/components/setup-notice"
 import { WeeklySummaryCard } from "@/components/weekly-summary-card"
 import type { WeeklySummary } from "@/lib/analysis"
+import { getDateBounds, parseDateRange } from "@/lib/date-range"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -30,7 +32,11 @@ import type { GradeDistributionRow, OverviewStats, RatingRequest, WeeklyStats } 
 
 export const dynamic = "force-dynamic"
 
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   if (!isSupabaseConfigured()) {
     return (
       <>
@@ -40,18 +46,25 @@ export default async function OverviewPage() {
     )
   }
   const supabase = await createClient()
+  const range = parseDateRange(await searchParams)
+  const rpcArgs = { d_from: range.from, d_to: range.to }
+  const filtered = Boolean(range.from || range.to)
 
-  const [statsRes, weeklyRes, distRes, recentRes] = await Promise.all([
-    supabase.from("v_overview_stats").select("*").single<OverviewStats>(),
+  let recentQuery = supabase
+    .from("rating_requests")
+    .select("no_req, da_calc, grade_type, cv_char_grade, cv_num_grade, n_char_grade, k_char_grade, mis_cd_error, fs_cd_error")
+    .order("da_calc", { ascending: false })
+    .order("no_req", { ascending: false })
+    .limit(8)
+  if (range.from) recentQuery = recentQuery.gte("da_calc", range.from)
+  if (range.to) recentQuery = recentQuery.lte("da_calc", range.to)
+
+  const [statsRes, weeklyRes, distRes, recentRes, bounds] = await Promise.all([
+    supabase.rpc("fn_overview_stats", rpcArgs).single<OverviewStats>(),
     supabase.from("v_weekly_stats").select("*").single<WeeklyStats>(),
-    supabase.from("v_grade_distribution").select("*").returns<GradeDistributionRow[]>(),
-    supabase
-      .from("rating_requests")
-      .select("no_req, da_calc, grade_type, cv_char_grade, cv_num_grade, n_char_grade, k_char_grade, mis_cd_error, fs_cd_error")
-      .order("da_calc", { ascending: false })
-      .order("no_req", { ascending: false })
-      .limit(8)
-      .returns<RatingRequest[]>(),
+    supabase.rpc("fn_grade_distribution", rpcArgs),
+    recentQuery.returns<RatingRequest[]>(),
+    getDateBounds(supabase),
   ])
 
   const cachedSummary = weeklyRes.data
@@ -98,7 +111,8 @@ export default async function OverviewPage() {
     nice: [],
     cretop: [],
   }
-  for (const row of (distRes.data ?? []).sort(
+  const distRows = (distRes.data ?? []) as GradeDistributionRow[]
+  for (const row of distRows.sort(
     (a, b) => (a.grade_order ?? 99) - (b.grade_order ?? 99)
   )) {
     byAgency[row.agency]?.push({ char_grade: row.char_grade, cnt: row.cnt })
@@ -106,7 +120,7 @@ export default async function OverviewPage() {
 
   const cards = [
     {
-      title: "전체 평가 신청",
+      title: filtered ? "기간 내 평가 신청" : "전체 평가 신청",
       value: stats.total_requests.toLocaleString(),
       sub: `기업 수 ${stats.distinct_companies.toLocaleString()}개 (사업자번호 기준)`,
       icon: Activity,
@@ -151,6 +165,7 @@ export default async function OverviewPage() {
     <>
       <PageHeader title="Overview" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        {bounds && <DateRangeFilter min={bounds.min} max={bounds.max} />}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {cards.map((c) => (
             <Card key={c.title}>
@@ -236,7 +251,7 @@ export default async function OverviewPage() {
               <CardDescription>평가기관별 투자적격/투기/부실위험 비중</CardDescription>
             </CardHeader>
             <CardContent>
-              <BandComposition rows={distRes.data ?? []} />
+              <BandComposition rows={distRows} />
             </CardContent>
           </Card>
 

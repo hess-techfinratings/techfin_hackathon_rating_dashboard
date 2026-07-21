@@ -105,6 +105,21 @@ export interface ErrorCodeRow {
   cnt: number
 }
 
+export type RequestListRow = Pick<
+  RatingRequest,
+  | "no_req"
+  | "da_calc"
+  | "grade_type"
+  | "cv_char_grade"
+  | "cv_num_grade"
+  | "n_char_grade"
+  | "n_num_grade"
+  | "k_char_grade"
+  | "k_num_grade"
+  | "mis_cd_error"
+  | "fs_cd_error"
+>
+
 export interface CompanySummary {
   no_req: string
   da_calc: string

@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, Building2, FileX2, LayoutDashboard } from "lucide-react"
+import { BarChart3, Building2, ClipboardList, FileX2, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -20,6 +20,7 @@ const navItems = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
   { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Companies", href: "/companies", icon: Building2 },
+  { title: "Requests", href: "/requests", icon: ClipboardList },
   { title: "미산출 분석", href: "/errors", icon: FileX2 },
 ]
 
