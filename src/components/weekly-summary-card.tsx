@@ -66,7 +66,7 @@ export function WeeklySummaryCard({
           주간 변화 요약
         </CardTitle>
         <CardDescription>
-          최근 1주({stats.week_start.slice(5)}~{stats.week_end.slice(5)}) 전주 대비 증감과 AI 코멘트
+          최근 1주(일~토, {stats.week_start.slice(5)}~{stats.week_end.slice(5)}) 전주 대비 증감과 AI 코멘트
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

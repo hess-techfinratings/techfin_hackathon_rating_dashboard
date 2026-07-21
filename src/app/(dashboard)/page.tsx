@@ -6,6 +6,8 @@ import { GradeBadge } from "@/components/grade-badge"
 import { GradeDistributionChart, type GradeCount } from "@/components/grade-distribution-chart"
 import { PageHeader } from "@/components/page-header"
 import { SetupNotice } from "@/components/setup-notice"
+import { WeeklySummaryCard } from "@/components/weekly-summary-card"
+import type { WeeklySummary } from "@/lib/analysis"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -51,6 +53,16 @@ export default async function OverviewPage() {
       .limit(8)
       .returns<RatingRequest[]>(),
   ])
+
+  const cachedSummary = weeklyRes.data
+    ? (
+        await supabase
+          .from("weekly_summaries")
+          .select("*")
+          .eq("week_end", weeklyRes.data.week_end)
+          .maybeSingle<WeeklySummary>()
+      ).data
+    : null
 
   const firstError = statsRes.error ?? weeklyRes.error ?? distRes.error ?? recentRes.error
   if (firstError || !statsRes.data) {
@@ -155,6 +167,14 @@ export default async function OverviewPage() {
             </Card>
           ))}
         </div>
+
+        {weekly && (
+          <WeeklySummaryCard
+            stats={weekly}
+            initial={cachedSummary ?? null}
+            aiConfigured={Boolean(process.env.OPENAI_API_KEY)}
+          />
+        )}
 
         <div className="grid gap-4 xl:grid-cols-5">
           <Card className="xl:col-span-3">

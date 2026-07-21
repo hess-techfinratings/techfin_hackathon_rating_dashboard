@@ -41,7 +41,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 8. Types for query results go in `src/lib/types.ts`; client components only for recharts/tabs interactivity.
 
 ## Data model
-- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable) · `weekly_summaries` (AI weekly-comment cache, PK week_end, anon-writable, 0008). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005, extended 0008 with MIS/FS/미산출 window counts; rolling 7-day windows anchored on max da_calc — data ends 2026-07-03, so calendar weeks would be empty) · `v_weekly_trend` (0006, ISO weeks) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both).
+- `rating_requests` (PK no_req, 5,267 rows) ← `financial_statements` (long format, 15,900 rows, 30 companies × 2 fiscal years) · `grade_analyses` (AI analysis cache, anon-writable) · `weekly_summaries` (AI weekly-comment cache, PK week_end, anon-writable, 0008). Views: `v_overview_stats`, `v_grade_distribution`, `v_companies` (0001) · `v_monthly_trend`, `v_agency_divergence`, `v_error_codes` (0003) · `v_agency_correlation` (0004, Spearman) · `v_weekly_stats` (0005/0008, MIS/FS/미산출 window counts) · `v_weekly_trend` (0006) · `v_weekly_errors` (0007, MIS/FS errors per week — grouped not stacked, same request can carry both). All weekly views use **Sunday–Saturday calendar weeks** (0009); `v_weekly_stats` anchors on the week containing max da_calc (data ends Fri 2026-07-03 → latest week 06-28~07-04, partial; today's calendar week would be empty).
 - Key acct_cd: 115000 자산총계 · 118000 부채총계 · 118900 자본총계 · 121000 매출액 · 125000 영업이익 · 129000 당기순이익 · 111519 단기차입금 · 116000 유동부채 · 118100 자본금 (risk flags). Leading spaces in `acct_nm` encode hierarchy depth.
 - Grades: num_grade 1=best…22=D (sort key); char grades differ per agency (크레디뷰 A/CCC, 나이스 BBB0, 크레탑 BBB+).
 - RLS: anon = read-only. Writes/DDL require `SUPABASE_DB_URL` via the setup script.
@@ -51,7 +51,8 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
-- 2026-07-20 주간 변화 요약 on 미산출 분석: WoW deltas (신청/MIS/FS/미산출) + AI comment via `/api/weekly-summary`, cached in `weekly_summaries` (migration 0008 also extends `v_weekly_stats`); E2E-tested with real key.
+- 2026-07-21 Sunday–Saturday weeks everywhere (migration 0009 redefines the three weekly views); moved 주간 변화 요약 card from 미산출 분석 to Overview (최근 1주 KPI card stays).
+- 2026-07-20 주간 변화 요약: WoW deltas (신청/MIS/FS/미산출) + AI comment via `/api/weekly-summary`, cached in `weekly_summaries` (migration 0008 also extends `v_weekly_stats`); E2E-tested with real key.
 - 2026-07-20 Weekly error trend on 미산출 분석: `v_weekly_errors` (migration 0007), `WeeklyErrorsChart` grouped MIS(chart-1)/FS(chart-8) bars — pair CVD-validated both modes.
 - 2026-07-20 Weekly trend chart on Analytics: `v_weekly_trend` view (migration 0006), `WeeklyTrendChart` (last 12 weeks, stacked 산출/미산출), paired with monthly chart in a 2-col grid.
 - 2026-07-20 Weekly volume KPI on Overview: `v_weekly_stats` view (migration 0005) + "최근 1주 신청" card with 전주 대비 diff; KPI grid now `xl:grid-cols-3` (6 cards).

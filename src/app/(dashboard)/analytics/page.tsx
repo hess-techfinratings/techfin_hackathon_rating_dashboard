@@ -151,7 +151,7 @@ export default async function AnalyticsPage() {
             <CardHeader>
               <CardTitle>주별 평가 신청 추이</CardTitle>
               <CardDescription>
-                최근 12주 신청 건수와 등급 산출/미산출 구성 (월요일 시작 주 기준)
+                최근 12주 신청 건수와 등급 산출/미산출 구성 (일~토 주 기준)
               </CardDescription>
             </CardHeader>
             <CardContent>
