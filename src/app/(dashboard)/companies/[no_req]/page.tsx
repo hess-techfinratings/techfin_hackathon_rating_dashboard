@@ -217,11 +217,19 @@ export default async function CompanyDetailPage({
           <span>신청일: {formatYmd(req.da_calc?.replaceAll("-", ""))}</span>
           <span>·</span>
           <span>등급 유형: {req.grade_type ?? "미산출"}</span>
-          {req.fs_msg_error && (
+          {req.mis_cd_error && (
             <>
               <span>·</span>
               <Badge variant="outline" className="font-normal">
-                FS 오류 {req.fs_cd_error}
+                MIS 미산출: {req.mis_cd_error}
+              </Badge>
+            </>
+          )}
+          {req.fs_cd_error && (
+            <>
+              <span>·</span>
+              <Badge variant="outline" className="font-normal">
+                FS 미산출: {req.fs_cd_error}
               </Badge>
             </>
           )}

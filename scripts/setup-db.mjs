@@ -1,11 +1,24 @@
-// One-shot database setup: creates the schema and imports both raw CSVs.
+// One-shot database setup: creates the schema and imports the raw data.
 //
 // Usage:  node scripts/setup-db.mjs
 // Needs SUPABASE_DB_URL in .env.local — the "Session pooler" connection
 // string from Supabase Dashboard → Connect (IPv4-compatible).
 //
-// CSV quirks handled here: CP949 encoding, quoted multi-line error fields,
-// and the NICE/CRETOP num_grade<->char_grade column swap.
+// Sources:
+//  - final_table_최종.xlsx  (rating requests + model threshold sheets)
+//  - result_bs_202607161720.csv  (BS/IS financial statements, CP949)
+//
+// Source quirks handled here:
+//  - NICE/CRETOP num_grade<->char_grade columns are swapped in the sheet
+//  - "X" is a no-grade placeholder → null
+//  - grade_type is spelled "FS+MIS" in the sheet → normalized to "MIS+FS"
+//    (the spelling every view and UI label uses)
+//  - the sheet has two ni_growth columns; the second (영업이익 증가율) is
+//    imported as op_growth
+//  - error codes no longer exist: MIS/FS 미산출사유 text goes into
+//    mis_cd_error / fs_cd_error as the grouping key, *_msg_error stay null
+//  - result_bs CSV: CP949 encoding, quoted multi-line fields, leading spaces
+//    in acct_nm encode hierarchy depth
 
 import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -13,10 +26,11 @@ import path from "node:path"
 import { parse } from "csv-parse/sync"
 import iconv from "iconv-lite"
 import pg from "pg"
+import XLSX from "xlsx"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
-const FINAL_TABLE_CSV = path.join(root, "final_table_202607141528.csv")
+const FINAL_TABLE_XLSX = path.join(root, "final_table_최종.xlsx")
 const RESULT_BS_CSV = path.join(root, "result_bs_202607161720.csv")
 const MIGRATIONS_DIR = path.join(root, "supabase", "migrations")
 
@@ -41,47 +55,96 @@ const readCsv = (file, opts = {}) =>
     ...opts,
   })
 
-const nullIfEmpty = (v) => (v === "" || v === undefined ? null : v)
+const nullIfEmpty = (v) => {
+  if (v === undefined || v === null) return null
+  const s = String(v).trim()
+  return s === "" ? null : s
+}
+const gradeText = (v) => {
+  const s = nullIfEmpty(v)
+  return s === "X" ? null : s // "X" = no grade in the new source
+}
 const toInt = (v) => {
   const n = parseInt(v, 10)
   return Number.isFinite(n) ? n : null
 }
-const toDate = (v) =>
-  /^\d{8}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : null
+const toNum = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null)
+const toDate = (v) => {
+  const s = String(v ?? "")
+  return /^\d{8}$/.test(s) ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null
+}
 
-// --- parse final_table (rating requests) ---
+// --- parse 학습 데이터 sheet (rating requests) ---
+// Read as index-based arrays: the header row has two "ni_growth" columns
+// (index 18 = 당기순이익 증가율, index 29 = 영업이익 증가율 → op_growth).
+const wb = XLSX.readFile(FINAL_TABLE_XLSX)
+const sheetRows = XLSX.utils.sheet_to_json(wb.Sheets["학습 데이터"], {
+  header: 1,
+  raw: true,
+})
+const RATIO_COLS = [
+  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+] // asset_growth … nrgts_ratio in sheet order (29 = op_growth)
+
 const requestRows = []
 const seen = new Set()
 let skipped = 0
-for (const r of readCsv(FINAL_TABLE_CSV)) {
-  const noReq = r.no_req?.trim()
-  const daCalc = toDate(r.da_calc ?? "")
+for (const r of sheetRows.slice(1)) {
+  const noReq = nullIfEmpty(r[0])
+  const daCalc = toDate(r[2])
   if (!noReq || !noReq.startsWith("CV") || !daCalc || seen.has(noReq)) {
     skipped++
     continue
   }
   seen.add(noReq)
+  const gradeType = nullIfEmpty(r[3])
   requestRows.push([
     noReq,
-    r.md5_no_biz,
+    nullIfEmpty(r[1]),
     daCalc,
-    nullIfEmpty(r.grade_type),
-    nullIfEmpty(r.dm_base),
-    toInt(r.num_grade),
-    nullIfEmpty(r.char_grade),
-    nullIfEmpty(r.n_dm_base),
-    toInt(r.n_char_grade), // swapped in source: n_char_grade holds the number
-    nullIfEmpty(r.n_num_grade), // swapped in source: n_num_grade holds the letter
-    nullIfEmpty(r.k_dm_base),
-    toInt(r.k_char_grade), // swapped in source
-    nullIfEmpty(r.k_num_grade), // swapped in source
-    nullIfEmpty(r.mis_cd_error),
-    nullIfEmpty(r.mis_msg_error),
-    nullIfEmpty(r.fs_cd_error),
-    nullIfEmpty(r.fs_msg_error),
+    gradeType === "FS+MIS" ? "MIS+FS" : gradeType,
+    nullIfEmpty(r[4]),
+    toInt(r[5]),
+    gradeText(r[6]),
+    nullIfEmpty(r[7]),
+    toInt(r[9]), // swapped in source: n_char_grade column holds the number
+    gradeText(r[8]), // swapped in source: n_num_grade column holds the letter
+    nullIfEmpty(r[10]),
+    toInt(r[12]), // swapped in source
+    gradeText(r[11]), // swapped in source
+    nullIfEmpty(r[14]), // MIS 미산출사유 → mis_cd_error (grouping key)
+    null, // mis_msg_error — no separate message in the new source
+    nullIfEmpty(r[15]), // FS 미산출사유 → fs_cd_error
+    null, // fs_msg_error
+    nullIfEmpty(r[13]) === "발급", // cert_issued
+    ...RATIO_COLS.map((i) => toNum(r[i])),
   ])
 }
 console.log(`rating_requests: ${requestRows.length} rows parsed, ${skipped} skipped`)
+
+// --- parse threshold sheets ---
+const misThresholds = XLSX.utils.sheet_to_json(wb.Sheets["MIS 모형 임계값"], {
+  header: 1,
+})
+  .slice(1)
+  .filter((r) => nullIfEmpty(r[0]))
+  .map((r) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => nullIfEmpty(r[i])))
+
+const fsThresholds = XLSX.utils.sheet_to_json(
+  wb.Sheets["FS 및 결합 모형 임계값"],
+  { header: 1 }
+)
+  .slice(1)
+  .filter((r) => nullIfEmpty(r[1]))
+  .map((r) => {
+    const cols = [1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => nullIfEmpty(r[i]))
+    // 기타/ni_growth is 영업이익 증가율 — matches the op_growth data column
+    if (cols[0] === "ni_growth" && cols[2]?.includes("영업이익")) cols[0] = "op_growth"
+    return cols
+  })
+console.log(
+  `thresholds: MIS ${misThresholds.length} rows, FS ${fsThresholds.length} rows`
+)
 
 // --- parse result_bs (financial statements) ---
 // trim: false — leading spaces in acct_nm encode the account hierarchy depth
@@ -103,7 +166,7 @@ for (const r of readCsv(RESULT_BS_CSV, { trim: false })) {
     nullIfEmpty(r.dm_fndend?.trim()),
     dataGb,
     nullIfEmpty(r.acct_cd?.trim()),
-    nullIfEmpty(r.acct_nm?.replace(/\s+$/, "")),
+    r.acct_nm === undefined ? null : nullIfEmpty(r.acct_nm.replace(/\s+$/, "")),
     r.amt === "" || r.amt === undefined ? null : String(r.amt).trim(),
   ])
 }
@@ -144,6 +207,10 @@ try {
     await client.query(readFileSync(path.join(MIGRATIONS_DIR, f), "utf8"))
   }
 
+  // weekly_summaries survives the migration replay (create if not exists) —
+  // clear it so cached AI comments can't describe the previous dataset.
+  await client.query("delete from weekly_summaries")
+
   await bulkInsert(
     "rating_requests",
     [
@@ -152,9 +219,32 @@ try {
       "n_dm_base", "n_num_grade", "n_char_grade",
       "k_dm_base", "k_num_grade", "k_char_grade",
       "mis_cd_error", "mis_msg_error", "fs_cd_error", "fs_msg_error",
+      "cert_issued",
+      "asset_growth", "sale_growth", "ni_growth", "op_margin", "op_roa",
+      "np_sale", "de_rt", "ic_rt", "ba_rt", "ar_turnover", "inv_turnover",
+      "asset_turnover", "cash_growth", "op_growth", "gp_growth",
+      "sale_ratio", "dd_ratio", "aptp_ratio", "nrgts_ratio",
     ],
     requestRows,
     500
+  )
+  await bulkInsert(
+    "mis_model_thresholds",
+    [
+      "var_code", "column_name", "label", "direction",
+      "good", "normal", "caution", "risk", "strong_risk", "interpretation",
+    ],
+    misThresholds,
+    100
+  )
+  await bulkInsert(
+    "fs_model_thresholds",
+    [
+      "column_name", "area", "indicator", "formula", "unit", "direction",
+      "good", "normal", "caution", "risk", "notes",
+    ],
+    fsThresholds,
+    100
   )
   await bulkInsert(
     "financial_statements",
@@ -169,6 +259,11 @@ try {
   const counts = await client.query(
     `select
        (select count(*) from rating_requests) as requests,
+       (select count(*) from rating_requests where mis_cd_error is not null) as mis_reasons,
+       (select count(*) from rating_requests where cert_issued) as certs,
+       (select count(*) from rating_requests where sale_ratio is not null) as ratio_rows,
+       (select count(*) from mis_model_thresholds) as mis_thresholds,
+       (select count(*) from fs_model_thresholds) as fs_thresholds,
        (select count(*) from financial_statements) as fs_rows,
        (select count(distinct no_req) from financial_statements) as fs_companies`
   )

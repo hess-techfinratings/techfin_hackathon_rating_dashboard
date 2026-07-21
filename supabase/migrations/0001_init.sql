@@ -7,8 +7,10 @@ drop view if exists v_companies;
 drop view if exists v_grade_distribution;
 drop view if exists v_overview_stats;
 drop table if exists grade_analyses;
-drop table if exists financial_statements;
-drop table if exists rating_requests;
+-- cascade: views from later migrations (0003+) also depend on these tables
+-- and are recreated when those migrations replay
+drop table if exists financial_statements cascade;
+drop table if exists rating_requests cascade;
 
 create table rating_requests (
   no_req        text primary key,

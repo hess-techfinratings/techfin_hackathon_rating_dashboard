@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { ErrorCodeRow, WeeklyStats } from "@/lib/types"
+import type { WeeklyStats } from "@/lib/types"
 
 export const maxDuration = 60
 
@@ -27,21 +27,18 @@ function topCodes(rows: WindowRow[], key: "mis_cd_error" | "fs_cd_error"): Map<s
   return new Map([...counts.entries()].sort((a, b) => b[1] - a[1]))
 }
 
-function describeWindow(
-  label: string,
-  rows: WindowRow[],
-  msgByCode: Map<string, string>
-): string {
+function describeWindow(label: string, rows: WindowRow[]): string {
   const graded = rows.filter((r) => r.cv_char_grade !== null).length
-  const codeLine = (key: "mis_cd_error" | "fs_cd_error") =>
+  // mis_cd_error / fs_cd_error hold the 미산출 사유 text itself
+  const reasonLine = (key: "mis_cd_error" | "fs_cd_error") =>
     [...topCodes(rows, key).entries()]
       .slice(0, 4)
-      .map(([code, cnt]) => `${code} ${cnt}건(${(msgByCode.get(code) ?? "").slice(0, 30) || "사유 미상"})`)
+      .map(([reason, cnt]) => `${reason} ${cnt}건`)
       .join(", ") || "없음"
   return [
     `[${label}] 신청 ${rows.length}건, 등급 산출 ${graded}건, 미산출 ${rows.length - graded}건`,
-    `  MIS 오류: ${codeLine("mis_cd_error")}`,
-    `  FS 오류: ${codeLine("fs_cd_error")}`,
+    `  MIS 미산출 사유: ${reasonLine("mis_cd_error")}`,
+    `  FS 미산출 사유: ${reasonLine("fs_cd_error")}`,
   ].join("\n")
 }
 
@@ -75,22 +72,16 @@ export async function POST(request: Request) {
   }
 
   const prevStart = shiftDate(stats.week_start, -7)
-  const [{ data: rows, error: rowsError }, { data: codeRows }] = await Promise.all([
-    supabase
-      .from("rating_requests")
-      .select("da_calc, cv_char_grade, mis_cd_error, fs_cd_error")
-      .gte("da_calc", prevStart)
-      .lte("da_calc", stats.week_end)
-      .returns<WindowRow[]>(),
-    supabase.from("v_error_codes").select("*").returns<ErrorCodeRow[]>(),
-  ])
+  const { data: rows, error: rowsError } = await supabase
+    .from("rating_requests")
+    .select("da_calc, cv_char_grade, mis_cd_error, fs_cd_error")
+    .gte("da_calc", prevStart)
+    .lte("da_calc", stats.week_end)
+    .returns<WindowRow[]>()
   if (rowsError || !rows?.length) {
     return NextResponse.json({ error: rowsError?.message ?? "비교할 주간 데이터가 없습니다." }, { status: 500 })
   }
 
-  const msgByCode = new Map(
-    (codeRows ?? []).map((r) => [r.code, (r.sample_msg ?? "").split("\n")[0]])
-  )
   const thisRows = rows.filter((r) => r.da_calc >= stats.week_start)
   const prevRows = rows.filter((r) => r.da_calc < stats.week_start)
 
@@ -115,12 +106,12 @@ export async function POST(request: Request) {
           role: "user",
           content: `최근 1주와 전주의 평가 신청 데이터를 비교해, 무엇이 어떻게 달라졌는지 짧은 주간 코멘트를 작성해 주세요.
 
-${describeWindow(`최근 1주 ${stats.week_start}~${stats.week_end}`, thisRows, msgByCode)}
-${describeWindow(`전주 ${prevStart}~${shiftDate(stats.week_start, -1)}`, prevRows, msgByCode)}
+${describeWindow(`최근 1주 ${stats.week_start}~${stats.week_end}`, thisRows)}
+${describeWindow(`전주 ${prevStart}~${shiftDate(stats.week_start, -1)}`, prevRows)}
 
 작성 형식:
 1) 핵심 변화 요약 1~2문장 (신청량·산출률 증감 % 포함)
-2) 오류 변화 불릿 2~3개 (증감을 이끈 오류코드와 건수 명시, 불릿은 "- " 사용)
+2) 미산출 사유 변화 불릿 2~3개 (증감을 이끈 사유와 건수 명시, 불릿은 "- " 사용)
 전체 400자 이내, 평문 텍스트로만 작성 (마크다운 헤더 금지).`,
         },
       ],

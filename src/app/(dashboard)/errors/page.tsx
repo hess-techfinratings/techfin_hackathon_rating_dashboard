@@ -30,7 +30,6 @@ function ErrorTable({ rows }: { rows: ErrorCodeRow[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-16">코드</TableHead>
           <TableHead>사유</TableHead>
           <TableHead className="w-[40%]">건수</TableHead>
         </TableRow>
@@ -38,9 +37,8 @@ function ErrorTable({ rows }: { rows: ErrorCodeRow[] }) {
       <TableBody>
         {rows.map((r) => (
           <TableRow key={`${r.system}-${r.code}`}>
-            <TableCell className="font-mono text-xs">{r.code}</TableCell>
-            <TableCell className="max-w-[320px] truncate text-sm" title={r.sample_msg ?? ""}>
-              {(r.sample_msg ?? "–").split("\n")[0].slice(0, 80)}
+            <TableCell className="max-w-[320px] truncate text-sm" title={r.code}>
+              {r.code}
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-2">
@@ -108,8 +106,8 @@ export default async function ErrorsPage({
 
   const rows = (data ?? []) as ErrorCodeRow[]
   const systems = [
-    { key: "MIS" as const, title: "MIS 산출불가 사유", desc: "경영정보등급(MIS) 오류코드별 건수" },
-    { key: "FS" as const, title: "FS 산출불가 사유", desc: "재무등급(FS) 오류코드별 건수" },
+    { key: "MIS" as const, title: "MIS 산출불가 사유", desc: "경영정보등급(MIS) 미산출 사유별 건수" },
+    { key: "FS" as const, title: "FS 산출불가 사유", desc: "재무등급(FS) 미산출 사유별 건수" },
   ]
 
   return (
@@ -134,7 +132,7 @@ export default async function ErrorsPage({
                     {total.toLocaleString()}건
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {rows.filter((r) => r.system === s.key).length}개 오류코드
+                    {rows.filter((r) => r.system === s.key).length}개 사유
                   </p>
                 </CardContent>
               </Card>

@@ -51,14 +51,14 @@ export function RequestsFilters({
         value={searchParams.get("error") ?? "all"}
         onValueChange={(v) => setParam("error", v ?? "all")}
       >
-        <SelectTrigger className="h-8 w-44">
+        <SelectTrigger className="h-8 max-w-64">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">전체 오류코드</SelectItem>
+          <SelectItem value="all">전체 미산출 사유</SelectItem>
           {errorCodes.map((e) => (
             <SelectItem key={`${e.system}:${e.code}`} value={`${e.system}:${e.code}`}>
-              {e.system} · {e.code}
+              {e.system} · {e.code.length > 24 ? `${e.code.slice(0, 24)}…` : e.code}
             </SelectItem>
           ))}
         </SelectContent>

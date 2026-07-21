@@ -140,7 +140,7 @@ export default async function RequestsPage({
                   <TableHead>크레디뷰</TableHead>
                   <TableHead>나이스</TableHead>
                   <TableHead>크레탑</TableHead>
-                  <TableHead>오류코드</TableHead>
+                  <TableHead>미산출 사유</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -170,7 +170,10 @@ export default async function RequestsPage({
                     <TableCell>
                       <GradeBadge charGrade={r.k_char_grade} numGrade={r.k_num_grade} />
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
+                    <TableCell
+                      className="max-w-[220px] truncate text-xs text-muted-foreground"
+                      title={[r.mis_cd_error, r.fs_cd_error].filter(Boolean).join(" · ")}
+                    >
                       {[r.mis_cd_error, r.fs_cd_error].filter(Boolean).join(" · ") || "–"}
                     </TableCell>
                   </TableRow>
