@@ -24,7 +24,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 ## Design & UI/UX conventions
 - UI copy is Korean; identifiers (no_req) and route/nav labels stay English.
 - Chart colors: `--chart-1..8` in `globals.css` hold a CVD-validated palette (separate light/dark values) — use via `var(--chart-N)`, don't invent hues.
-- Grade bands are the visual language: 투자적격(1–10)=chart-1 · 투기(11–16)=chart-3 · 부실위험(17–22)=chart-6, defined once in `src/lib/grade.ts`. Grades render via `GradeBadge` (band dot + ink text); the detail page's `RatingSpectrum` puts all agencies on the 22-notch scale.
+- Grade bands are the visual language: 투자적격(1–8, ~BBB+)=chart-1 · 투기(9–16)=chart-3 · 부실위험(17–22)=chart-6, defined once in `src/lib/grade.ts` (boundary set to BBB+ per user 2026-07-21). Grades render via `GradeBadge` (band dot + ink text); the detail page's `RatingSpectrum` puts all agencies on the 22-notch scale.
 - Charts use the shadcn chart wrapper (recharts): single series → no legend; ≥2 series → `ChartLegend`; always `ChartTooltip`; bars get `radius={[4,4,0,0]}`, a `maxBarSize`, and `isAnimationActive={false}` (instant render, reduced-motion friendly).
 - Dark mode via next-themes (class strategy); `ThemeToggle` lives in `PageHeader` — every page gets it for free.
 - Money: `formatKRW` (억/만 compact) for cards & summaries, `formatWon` (원 with separators) for statement tables, chart axes in 억원; numeric cells get `tabular-nums` + `text-right`.
