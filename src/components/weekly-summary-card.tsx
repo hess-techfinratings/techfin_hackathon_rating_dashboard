@@ -53,8 +53,11 @@ export function WeeklySummaryCard({
 
   const items = [
     { label: "평가 신청", cur: stats.this_week, prev: stats.prev_week },
-    { label: "MIS 오류", cur: stats.this_week_mis, prev: stats.prev_week_mis },
-    { label: "FS 오류", cur: stats.this_week_fs, prev: stats.prev_week_fs },
+    {
+      label: "등급 정상 산출",
+      cur: stats.this_week - stats.this_week_ungraded,
+      prev: stats.prev_week - stats.prev_week_ungraded,
+    },
     { label: "미산출", cur: stats.this_week_ungraded, prev: stats.prev_week_ungraded },
   ]
 
@@ -70,7 +73,7 @@ export function WeeklySummaryCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           {items.map((it) => (
             <div key={it.label}>
               <p className="text-xs text-muted-foreground">{it.label}</p>

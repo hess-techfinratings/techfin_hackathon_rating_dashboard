@@ -55,6 +55,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
+- 2026-07-21 주간 변화 요약 card now shows 평가 신청/등급 정상 산출/미산출 (graded = this_week − ungraded; replaced the MIS/FS error items).
 - 2026-07-21 Migrated to new source `final_table_최종.xlsx` (full DB reset): error codes → 미산출 사유 text keys, `cert_issued` + 19 ratio columns + threshold tables (migration 0011, importer rewrite); UI/AI prompts now say 사유; 0001 drops made cascade-safe.
 - 2026-07-21 New 타사 등급 page (`/grades`): moved 등급 분포 + 등급대 구성 there from Overview (date filter included); Overview now pairs 최근 평가 신청 with the type-count cards.
 - 2026-07-21 Calendar date-range filter (`DateRangeFilter`: range Calendar + 전체/4주/12주 presets, state in `?from/?to`) on Overview·Analytics·미산출; RPC fns in migration 0010; new `/requests` page (server-paginated 50/page with grade_type + error-code filters) closing the request-list roadmap item.
