@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { NOTCH_COUNT } from "@/lib/grade"
+import { NOTCH_CHARS, NOTCH_COUNT } from "@/lib/grade"
 
 export interface HeatmapCell {
   x: number // 크레디뷰 notch (1=best)
@@ -97,7 +97,7 @@ export function GradeHeatmap({
             textAnchor="middle"
             className="fill-muted-foreground text-[9px]"
           >
-            {xChars[n] ?? n}
+            {xChars[n] ?? NOTCH_CHARS[n] ?? n}
           </text>
         ))}
         <text
@@ -117,7 +117,7 @@ export function GradeHeatmap({
             textAnchor="end"
             className="fill-muted-foreground text-[9px]"
           >
-            {yChars[n] ?? n}
+            {yChars[n] ?? NOTCH_CHARS[n] ?? n}
           </text>
         ))}
       </svg>
@@ -143,10 +143,10 @@ export function GradeHeatmap({
             top: `${(py(hover.y) / H) * 100}%`,
           }}
         >
-          <span className="font-medium">크레디뷰 {xChars[hover.x] ?? hover.x}</span>
+          <span className="font-medium">크레디뷰 {xChars[hover.x] ?? NOTCH_CHARS[hover.x] ?? hover.x}</span>
           {" · "}
           <span className="font-medium">
-            {yAgency} {yChars[hover.y] ?? hover.y}
+            {yAgency} {yChars[hover.y] ?? NOTCH_CHARS[hover.y] ?? hover.y}
           </span>
           <span className="ml-1.5 tabular-nums">{hover.cnt.toLocaleString()}건</span>
         </div>
