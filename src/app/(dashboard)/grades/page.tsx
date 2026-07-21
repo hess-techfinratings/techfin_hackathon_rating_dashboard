@@ -122,7 +122,7 @@ export default async function GradesPage({
                 <CardTitle>크레디뷰 × {h.label} 등급 일치 히트맵</CardTitle>
                 <CardDescription>
                   비교 가능 {h.total.toLocaleString()}건 · 점선 대각선 = 등급 일치 · 대각선
-                  아래는 {h.subject} 더 낮게 평가 (실선 = 투자적격/투기/부실위험 경계)
+                  위는 {h.subject} 더 낮게 평가 (실선 = 투자적격/투기/부실위험 경계)
                 </CardDescription>
               </CardHeader>
               <CardContent>

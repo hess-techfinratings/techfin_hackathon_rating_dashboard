@@ -38,7 +38,8 @@ export function GradeHeatmap({
   const [hover, setHover] = useState<HeatmapCell | null>(null)
   const max = Math.max(1, ...cells.map((c) => c.cnt))
   const px = (notch: number) => M.left + (notch - 1) * CELL
-  const py = (notch: number) => M.top + (notch - 1) * CELL
+  // y is flipped: best grade (notch 1, AAA) sits at the bottom
+  const py = (notch: number) => M.top + (NOTCH_COUNT - notch) * CELL
 
   return (
     <div className="relative">
@@ -61,7 +62,7 @@ export function GradeHeatmap({
         {[8, 16].map((n) => (
           <g key={n} className="stroke-border">
             <line x1={px(n + 1)} y1={M.top} x2={px(n + 1)} y2={M.top + GRID} strokeWidth={1} />
-            <line x1={M.left} y1={py(n + 1)} x2={M.left + GRID} y2={py(n + 1)} strokeWidth={1} />
+            <line x1={M.left} y1={py(n)} x2={M.left + GRID} y2={py(n)} strokeWidth={1} />
           </g>
         ))}
         {cells.map((c) => (
@@ -80,9 +81,9 @@ export function GradeHeatmap({
         {/* agreement diagonal — drawn over the cells so it stays visible */}
         <line
           x1={px(1)}
-          y1={py(1)}
+          y1={M.top + GRID}
           x2={px(NOTCH_COUNT + 1)}
-          y2={py(NOTCH_COUNT + 1)}
+          y2={M.top}
           className="pointer-events-none stroke-muted-foreground/50"
           strokeWidth={1}
           strokeDasharray="3 3"
