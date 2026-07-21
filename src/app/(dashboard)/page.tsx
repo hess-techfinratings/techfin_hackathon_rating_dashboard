@@ -1,10 +1,8 @@
 import { Activity, Building2, CalendarRange, FileCheck2, FileX2, Gauge } from "lucide-react"
 import Link from "next/link"
 
-import { BandComposition } from "@/components/band-composition"
 import { DateRangeFilter } from "@/components/date-range-filter"
 import { GradeBadge } from "@/components/grade-badge"
-import { GradeDistributionChart, type GradeCount } from "@/components/grade-distribution-chart"
 import { PageHeader } from "@/components/page-header"
 import { SetupNotice } from "@/components/setup-notice"
 import { WeeklySummaryCard } from "@/components/weekly-summary-card"
@@ -28,7 +26,7 @@ import {
 } from "@/components/ui/table"
 import { formatYmd } from "@/lib/format"
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
-import type { GradeDistributionRow, OverviewStats, RatingRequest, WeeklyStats } from "@/lib/types"
+import type { OverviewStats, RatingRequest, WeeklyStats } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -59,10 +57,9 @@ export default async function OverviewPage({
   if (range.from) recentQuery = recentQuery.gte("da_calc", range.from)
   if (range.to) recentQuery = recentQuery.lte("da_calc", range.to)
 
-  const [statsRes, weeklyRes, distRes, recentRes, bounds] = await Promise.all([
+  const [statsRes, weeklyRes, recentRes, bounds] = await Promise.all([
     supabase.rpc("fn_overview_stats", rpcArgs).single<OverviewStats>(),
     supabase.from("v_weekly_stats").select("*").single<WeeklyStats>(),
-    supabase.rpc("fn_grade_distribution", rpcArgs),
     recentQuery.returns<RatingRequest[]>(),
     getDateBounds(supabase),
   ])
@@ -77,7 +74,7 @@ export default async function OverviewPage({
       ).data
     : null
 
-  const firstError = statsRes.error ?? weeklyRes.error ?? distRes.error ?? recentRes.error
+  const firstError = statsRes.error ?? weeklyRes.error ?? recentRes.error
   if (firstError || !statsRes.data) {
     return (
       <>
@@ -105,18 +102,6 @@ export default async function OverviewPage({
       ? Math.round((weeklyDelta / weekly.prev_week) * 1000) / 10
       : null
   const signed = (n: number) => (n >= 0 ? `+${n.toLocaleString()}` : n.toLocaleString())
-
-  const byAgency: Record<"crediview" | "nice" | "cretop", GradeCount[]> = {
-    crediview: [],
-    nice: [],
-    cretop: [],
-  }
-  const distRows = (distRes.data ?? []) as GradeDistributionRow[]
-  for (const row of distRows.sort(
-    (a, b) => (a.grade_order ?? 99) - (b.grade_order ?? 99)
-  )) {
-    byAgency[row.agency]?.push({ char_grade: row.char_grade, cnt: row.cnt })
-  }
 
   const cards = [
     {
@@ -194,16 +179,6 @@ export default async function OverviewPage({
         <div className="grid gap-4 xl:grid-cols-5">
           <Card className="xl:col-span-3">
             <CardHeader>
-              <CardTitle>등급 분포</CardTitle>
-              <CardDescription>평가기관별 문자등급 분포 (좋은 등급 → 낮은 등급 순)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <GradeDistributionChart byAgency={byAgency} />
-            </CardContent>
-          </Card>
-
-          <Card className="xl:col-span-2">
-            <CardHeader>
               <CardTitle>최근 평가 신청</CardTitle>
               <CardDescription>최신 8건</CardDescription>
             </CardHeader>
@@ -242,20 +217,7 @@ export default async function OverviewPage({
               </Table>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-5">
-          <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>등급대 구성</CardTitle>
-              <CardDescription>평가기관별 투자적격/투기/부실위험 비중</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BandComposition rows={distRows} />
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 sm:grid-cols-3 xl:col-span-3 xl:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-3 xl:col-span-2 xl:grid-cols-1">
             {[
               { label: "FS (재무등급)", value: stats.type_fs },
               { label: "MIS+FS (통합등급)", value: stats.type_mis_fs },

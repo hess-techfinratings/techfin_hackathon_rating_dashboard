@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Corporate credit-rating dashboard (TechFin hackathon): 5,267 rating requests compared across three agencies (크레디뷰/나이스/크레탑), with 2-year financial statements for 30 companies. Stack: Next.js 16 (App Router, Turbopack) · Tailwind v4 · shadcn/ui · Supabase · Vercel. Maintained via the `/claude-md` skill.
 
-Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys from `main` at github.com/hess-techfinratings/techfin_hackathon_rating_dashboard). Pages: `/` Overview · `/analytics` · `/companies` (+`/[no_req]` detail) · `/requests` 평가 신청 목록 · `/errors` 미산출 분석.
+Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys from `main` at github.com/hess-techfinratings/techfin_hackathon_rating_dashboard). Pages: `/` Overview · `/analytics` · `/grades` 타사 등급 · `/companies` (+`/[no_req]` detail) · `/requests` 평가 신청 목록 · `/errors` 미산출 분석.
 
 ## Rules
 - shadcn/ui only — do NOT add NextUI/HeroUI or Chakra UI (styling systems conflict; decided 2026-07-17).
@@ -53,6 +53,7 @@ Production: https://techfin-hackathon-rating-dashboard.vercel.app (auto-deploys 
 - Avoid: 3D pie charts, raw multi-thousand-row table dumps, full red/yellow/green cell matrices, hardcoded numbers in prose — always aggregate → drill-down instead.
 
 ## What was done
+- 2026-07-21 New 타사 등급 page (`/grades`): moved 등급 분포 + 등급대 구성 there from Overview (date filter included); Overview now pairs 최근 평가 신청 with the type-count cards.
 - 2026-07-21 Calendar date-range filter (`DateRangeFilter`: range Calendar + 전체/4주/12주 presets, state in `?from/?to`) on Overview·Analytics·미산출; RPC fns in migration 0010; new `/requests` page (server-paginated 50/page with grade_type + error-code filters) closing the request-list roadmap item.
 - 2026-07-21 Sunday–Saturday weeks everywhere (migration 0009 redefines the three weekly views); moved 주간 변화 요약 card from 미산출 분석 to Overview (최근 1주 KPI card stays).
 - 2026-07-20 주간 변화 요약: WoW deltas (신청/MIS/FS/미산출) + AI comment via `/api/weekly-summary`, cached in `weekly_summaries` (migration 0008 also extends `v_weekly_stats`); E2E-tested with real key.
